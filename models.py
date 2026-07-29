@@ -1,8 +1,5 @@
 import datetime
 
-from pip._internal.network import cache
-
-
 class Product:
     def __init__(
         self,
