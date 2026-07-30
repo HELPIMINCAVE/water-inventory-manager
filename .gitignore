@@ -1,5 +1,31 @@
-.venv/
+# Local Environment & Secrets
 .env
-.DS_Store
+.env.local
+*.env
+
+# Local SQLite Database (Keeps user data local / prevents accidental overwrites)
+*.db
+*.sqlite
+*.sqlite3
+water_station.db
+
+# Python Bytecode & Cache Files
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Streamlit Local Configuration & Cache
+.streamlit/secrets.toml
+.streamlit/cache/
+
+# IDE / Editor Settings
+.vscode/
 .idea/
+*.swp
+.DS_Store
