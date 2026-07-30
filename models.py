@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
 
-
 @dataclass
 class Product:
     product_id: str | int
@@ -38,3 +37,15 @@ class ReorderAlert:
     phone: str
     days_since_last_refill: int
     is_overdue: bool
+
+@dataclass
+class SaleItem:
+    product_id: str
+    product_name: str
+    quantity: int
+    unit_price: float
+
+    @property
+    def line_subtotal(self) -> float:
+        """Calculates total cost for this specific line item."""
+        return self.quantity * self.unit_price
