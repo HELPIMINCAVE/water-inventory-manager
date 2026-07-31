@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f2cd258a-49fe-4dd8-82e6-0e1c1f1dfae2" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../water-inventory-manager/inventory_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../water-inventory-manager/database.py" beforeDir="false" afterPath="$PROJECT_DIR$/../water-inventory-manager/database.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="CopilotPersistence">
+    <persistenceIdMap>
+      <entry key="_/Users/ferdinandguiang/inventory-manager" value="3HB0y00IzVdVglIBBGOdPqhiA5E" />
+      <entry key="_/Users/ferdinandguiang/water-inventory-manager" value="3HGe9URMOhsNQImPg2e7G7qr4lG" />
+    </persistenceIdMap>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../water-inventory-manager" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;HELPIMINCAVE&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/HELPIMINCAVE/inventory-manager.git&quot;,
+    &quot;accountId&quot;: &quot;6789548c-0e5e-4452-9e25-3a8ed7fc79f7&quot;
+  }
+}</component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="NextEditCompletionFeaturesState">
+    <decayedCancelled>
+      <entry key="MS100" value="1.2150227761754642" />
+      <entry key="MS500" value="2.9104669218610653" />
+      <entry key="S2" value="5.249803447083324" />
+      <entry key="S5" value="7.702461257323217" />
+      <entry key="S10" value="9.66282051501082" />
+      <entry key="S30" value="11.685876905395478" />
+      <entry key="S60" value="12.434837846697473" />
+      <entry key="M2" value="13.646091791105896" />
+      <entry key="M5" value="21.19489541694802" />
+      <entry key="M10" value="47.02402902041939" />
+      <entry key="M15" value="79.06155864759378" />
+      <entry key="M30" value="173.91532046752047" />
+      <entry key="H1" value="300.47594971730024" />
+      <entry key="H2" value="413.05375526238737" />
+      <entry key="H4" value="489.77002653887223" />
+      <entry key="D1" value="567.6470268686477" />
+      <entry key="W1" value="582.4818505952403" />
+    </decayedCancelled>
+    <decayedSelected>
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="1.314012047487835E-195" />
+      <entry key="S2" value="1.903925001059673E-49" />
+      <entry key="S5" value="3.2498258203700714E-20" />
+      <entry key="S10" value="1.8038436964316512E-10" />
+      <entry key="S30" value="6.427690593892795E-4" />
+      <entry key="S60" value="0.040463837800953015" />
+      <entry key="M2" value="0.4529698877829183" />
+      <entry key="M5" value="2.6806430307498603" />
+      <entry key="M10" value="6.391202369081606" />
+      <entry key="M15" value="9.982113470137516" />
+      <entry key="M30" value="19.755083272293437" />
+      <entry key="H1" value="32.74256807008114" />
+      <entry key="H2" value="44.54065992565623" />
+      <entry key="H4" value="52.715009004055766" />
+      <entry key="D1" value="61.115112262702254" />
+      <entry key="W1" value="62.72619093750958" />
+    </decayedSelected>
+    <decayedShown>
+      <entry key="MS100" value="1.1116974486570264" />
+      <entry key="MS500" value="2.8546425667712394" />
+      <entry key="S2" value="5.214981703515434" />
+      <entry key="S5" value="7.666080204215127" />
+      <entry key="S10" value="9.634277779120875" />
+      <entry key="S30" value="11.673198076154728" />
+      <entry key="S60" value="12.466324555915945" />
+      <entry key="M2" value="14.085837047037174" />
+      <entry key="M5" value="23.850497223020845" />
+      <entry key="M10" value="53.3861598972593" />
+      <entry key="M15" value="89.01389657744592" />
+      <entry key="M30" value="193.64205496756043" />
+      <entry key="H1" value="333.1958166317318" />
+      <entry key="H2" value="457.57928895309243" />
+      <entry key="H4" value="542.4761802719038" />
+      <entry key="D1" value="628.7604435285732" />
+      <entry key="W1" value="645.2077933051502" />
+    </decayedShown>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3HB0xp9WOSE7vNw1zk3bockIoTZ" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectSessionTemplates">
+    <option name="panelTemplate">
+      <template>
+        <option name="modeId" value="Agent" />
+        <option name="model">
+          <model>
+            <option name="modelType" value="builtin_family" />
+            <option name="modelValue" value="auto" />
+          </model>
+        </option>
+        <option name="targetType" value="BACKGROUND" />
+        <option name="worktreeMode" value="WORKSPACE" />
+      </template>
+    </option>
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
+    &quot;copilot.chat.legacySessionMetadata.migrated&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  }
+}</component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-python-sdk-50341a9f1f9c-c2ffad84badb-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-261.26222.68" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f2cd258a-49fe-4dd8-82e6-0e1c1f1dfae2" name="Changes" comment="" />
+      <created>1785326404811</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1785326404811</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+</project>
