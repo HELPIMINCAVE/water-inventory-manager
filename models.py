@@ -1,5 +1,8 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel, Field
+
 
 @dataclass
 class Product:
@@ -38,14 +41,40 @@ class ReorderAlert:
     days_since_last_refill: int
     is_overdue: bool
 
+
 @dataclass
 class SaleItem:
-    product_id: str
+    product_id: str | int
     product_name: str
     quantity: int
     unit_price: float
 
     @property
     def line_subtotal(self) -> float:
-        """Calculates total cost for this specific line item."""
         return self.quantity * self.unit_price
+
+
+class User(BaseModel):
+    user_id: Optional[int] = None
+    username: str
+    password_hash: str
+    station_name: str = "Water Station"
+
+
+class Expense(BaseModel):
+    expense_id: Optional[int] = None
+    user_id: int
+    category: str
+    amount: float
+    description: Optional[str] = None
+    date: str = Field(
+        default_factory=lambda: datetime.now().strftime("%Y-%m-%d")
+    )
+
+
+class CashFlowSummary(BaseModel):
+    total_sales: float
+    total_expenses: float
+    net_profit: float
+    cash_payments: float
+    digital_payments: float = 0.0

@@ -3,12 +3,25 @@ from contextlib import contextmanager
 from typing import Optional
 from models import *
 
+
 class Database:
-    def __init__(self, db_path: str="water_station.db"):
+
+    def __init__(self, db_path: str = "water_station.db"):
         self.db_path = db_path
-        
-        self.initialize_tables()
+        self._migrate_db()
     
+    def _migrate_db(self):
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("PRAGMA table_info(customers)")
+            columns = [col[1] for col in cursor.fetchall()]
+            
+            if columns and "created_at" not in columns:
+                cursor.execute("ALTER TABLE customers ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+                
+            conn.commit()
+
     @contextmanager
     def get_connection(self):
         conn = sqlite3.connect(self.db_path)
@@ -21,45 +34,87 @@ class Database:
             raise e
         finally:
             conn.close()
-    
+
     def initialize_tables(self):
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        cursor.execute(
+        with self.get_connection() as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS products (
+                    product_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    volume_liters REAL NOT NULL,
+                    cost_price REAL NOT NULL,
+                    selling_price REAL NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    reorder_level INTEGER NOT NULL,
+                    is_refill_service INTEGER NOT NULL
+                )
             """
-            CREATE TABLE IF NOT EXISTS products (
-                product_id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                volume_liters REAL NOT NULL,
-                cost_price REAL NOT NULL,
-                selling_price REAL NOT NULL,
-                quantity INTEGER NOT NULL,
-                reorder_level INTEGER NOT NULL,
-                is_refill_service INTEGER NOT NULL
             )
-        """
-        )
-        
-        conn.commit()
-        conn.close()
-    
+
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS customers (
+                    customer_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    phone TEXT NOT NULL,
+                    address TEXT NOT NULL,
+                    last_refill_date TEXT,
+                    avg_interval_days INTEGER DEFAULT 7,
+                    total_orders INTEGER DEFAULT 0
+                )
+            """
+            )
+
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sales (
+                    transaction_id TEXT PRIMARY KEY,
+                    customer_id TEXT,
+                    timestamp TEXT NOT NULL,
+                    subtotal REAL NOT NULL,
+                    tax REAL NOT NULL,
+                    grand_total REAL NOT NULL,
+                    FOREIGN KEY(customer_id) REFERENCES customers(customer_id)
+                )
+            """
+            )
+
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sale_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    transaction_id TEXT NOT NULL,
+                    product_id TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    unit_price REAL NOT NULL,
+                    line_subtotal REAL NOT NULL,
+                    FOREIGN KEY(transaction_id) REFERENCES sales(transaction_id),
+                    FOREIGN KEY(product_id) REFERENCES products(product_id)
+                )
+            """
+            )
+
     def add_product(self, product: Product):
         with self.get_connection() as conn:
-            conn.execute("""
-            INSERT INTO products
-                (product_id, name, volume_liters, cost_price, selling_price, quantity, reorder_level, is_refill_service)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (product.product_id,
-            product.name,
-            product.volume_liters,
-            product.cost_price,
-            product.selling_price,
-            product.quantity,
-            product.reorder_level,
-            1 if product.is_refill_service else 0))
-    
+            conn.execute(
+                """
+                INSERT INTO products
+                    (product_id, name, volume_liters, cost_price, selling_price, quantity, reorder_level, is_refill_service)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    product.product_id,
+                    product.name,
+                    product.volume_liters,
+                    product.cost_price,
+                    product.selling_price,
+                    product.quantity,
+                    product.reorder_level,
+                    1 if product.is_refill_service else 0,
+                ),
+            )
+
     def get_all_products(self) -> list[Product]:
         with self.get_connection() as conn:
             cursor = conn.execute("SELECT * FROM products")
@@ -76,28 +131,37 @@ class Database:
                 )
                 for row in cursor
             ]
-    
+
     def update_product_quantity(self, product_id: str, delta_quantity: int):
         with self.get_connection() as conn:
-            conn.execute("""UPDATE products
+            conn.execute(
+                """
+                UPDATE products
                 SET quantity = quantity + ?
-                WHERE product_id = ?""", (delta_quantity, product_id))
-    
+                WHERE product_id = ?
+                """,
+                (delta_quantity, product_id),
+            )
+
     def add_customer(self, customer: Customer):
         with self.get_connection() as conn:
-            conn.execute("""
-            INSERT INTO customers
-                (customer_id, name, phone, address, last_refill_date, avg_interval_days, total_orders)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (customer.customer_id,
-                customer.name,
-                customer.phone,
-                customer.address,
-                customer.last_refill_date,
-                customer.average_refill_interval_days,
-                customer.total_orders_placed
-                ))
-    
+            conn.execute(
+                """
+                INSERT INTO customers
+                    (customer_id, name, phone, address, last_refill_date, avg_interval_days, total_orders)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    customer.customer_id,
+                    customer.name,
+                    customer.phone,
+                    customer.address,
+                    customer.last_refill_date,
+                    customer.average_refill_interval_days,
+                    customer.total_orders_placed,
+                ),
+            )
+
     def get_all_customers(self) -> list[Customer]:
         with self.get_connection() as conn:
             cursor = conn.execute("SELECT * FROM customers")
@@ -109,11 +173,11 @@ class Database:
                     address=row["address"],
                     last_refill_date=row["last_refill_date"],
                     average_refill_interval_days=row["avg_interval_days"],
-                    total_orders_placed=row["total_orders"]
+                    total_orders_placed=row["total_orders"],
                 )
                 for row in cursor
             ]
-    
+
     def get_overdue_customers(self) -> list[ReorderAlert]:
         with self.get_connection() as conn:
             cursor = conn.execute(
@@ -130,7 +194,7 @@ class Database:
                   AND (julianday('now') - julianday(last_refill_date)) > avg_interval_days
             """
             )
-            
+
             return [
                 ReorderAlert(
                     customer_id=row["customer_id"],
@@ -141,18 +205,18 @@ class Database:
                 )
                 for row in cursor
             ]
-    
+
     def process_checkout(
-            self,
-            transaction_id: str,
-            customer_id: Optional[str],
-            cart_items: list[SaleItem],
-            subtotal: float,
-            tax: float,
-            grand_total: float,
+        self,
+        transaction_id: str,
+        customer_id: Optional[str],
+        cart_items: list[SaleItem],
+        subtotal: float,
+        tax: float,
+        grand_total: float,
     ) -> bool:
         current_timestamp = datetime.now().isoformat()
-        
+
         with self.get_connection() as conn:
             conn.execute(
                 """
@@ -168,7 +232,7 @@ class Database:
                     grand_total,
                 ),
             )
-            
+
             for item in cart_items:
                 conn.execute(
                     """
@@ -183,7 +247,7 @@ class Database:
                         item.line_subtotal,
                     ),
                 )
-                
+
                 conn.execute(
                     """
                     UPDATE products
@@ -192,9 +256,9 @@ class Database:
                     """,
                     (item.quantity, item.product_id),
                 )
-            
-                if customer_id:
-                    conn.execute(
+
+            if customer_id:
+                conn.execute(
                     """
                     UPDATE customers
                     SET last_refill_date = DATE('now'),
@@ -203,5 +267,18 @@ class Database:
                     """,
                     (customer_id,),
                 )
-        
+
         return True
+    
+    def verify_user(self, username, password):
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT * FROM users
+                WHERE username = ? AND password = ?
+                """,
+                (username, password),
+            )
+            user = cursor.fetchone()
+            return user

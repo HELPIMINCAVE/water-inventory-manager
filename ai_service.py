@@ -53,3 +53,4 @@ class AIService:
                 f"Hi {alert.customer_name}! Friendly reminder from {station_name}: "
                 f"Your water container might be running low. Contact us today for a quick refill!"
             )
+    
