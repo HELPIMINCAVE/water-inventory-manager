@@ -65,7 +65,7 @@ def show_auth_page():
             if user:
                 st.session_state.authenticated = True
                 st.session_state.user = user
-                st.success(f"Welcome back, {user.station_name}!")
+                st.success(f"Welcome back, {user['station_name']}!")
                 st.rerun()
             else:
                 st.error("Invalid username or password.")

@@ -285,27 +285,11 @@ class Database:
     
     def verify_user(self, username, password):
         with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                SELECT * FROM users
-                WHERE username = ? AND password = ?
-                """,
-                (username, password),
-            )
-            user = cursor.fetchone()
-            return user
-    
-    def authenticate_user(self, username, password):
-        with self.get_connection() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
-                """
-                SELECT * FROM users
-                WHERE username = ? AND password = ?
-                """,
-                (username, password),
+                "SELECT * FROM users WHERE username = ? AND password = ?",
+                (username, password)
             )
             row = cursor.fetchone()
             
