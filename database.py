@@ -9,6 +9,7 @@ class Database:
     def __init__(self, db_path: str = "water_station.db"):
         self.db_path = db_path
         self._migrate_db()
+        self.initialize_tables()
     
     def _migrate_db(self):
         with sqlite3.connect(self.db_path) as conn:
@@ -37,6 +38,8 @@ class Database:
 
     def initialize_tables(self):
         with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS products (
@@ -51,6 +54,16 @@ class Database:
                 )
             """
             )
+            
+            cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS users (
+                            user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            username TEXT UNIQUE NOT NULL,
+                            password TEXT NOT NULL,
+                            station_name TEXT NOT NULL,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
 
             conn.execute(
                 """
