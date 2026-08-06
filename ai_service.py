@@ -54,3 +54,32 @@ class AIService:
                 f"Your water container might be running low. Contact us today for a quick refill!"
             )
     
+    def generate_promo_broadcast(
+            self, promo_title: str, discount_detail: str, station_name: str
+    ) -> str:
+        """Generates a marketing SMS for special offers or holiday promos."""
+        if not self.client:
+            return f"{station_name} Promo: Get {discount_detail} on your next refill! Call us to order today."
+        
+        prompt = f"""
+        Write a short, exciting SMS marketing broadcast (under 160 characters) for a water refilling station.
+
+        Station Name: {station_name}
+        Offer: {promo_title} - {discount_detail}
+
+        Guidelines:
+        - Keep it under 160 characters.
+        - Sound friendly and urgent.
+        - Include a clear call-to-action (e.g., "Reply or call now!").
+        """
+        
+        try:
+            response = self.client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="llama-3.3-70b-versatile",
+                temperature=0.8,
+                max_tokens=100,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception:
+            return f"{station_name}: {promo_title}! Enjoy {discount_detail} on your next order. Reply to refill!"

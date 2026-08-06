@@ -282,3 +282,24 @@ class Database:
             )
             user = cursor.fetchone()
             return user
+    
+    def authenticate_user(self, username, password):
+        with self.get_connection() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT * FROM users
+                WHERE username = ? AND password = ?
+                """,
+                (username, password),
+            )
+            row = cursor.fetchone()
+            
+            if row:
+                return User(
+                    user_id=row["user_id"],
+                    username=row["username"],
+                    station_name=row["station_name"]
+                )
+            return None
