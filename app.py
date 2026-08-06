@@ -61,7 +61,7 @@ def show_auth_page():
         password = st.text_input("Password", type="password", key="login_pass")
         
         if st.button("Log In", type="primary", use_container_width=True):
-            user = db.authenticate_user(username, password)
+            user = db.verify_user(username, password)
             if user:
                 st.session_state.authenticated = True
                 st.session_state.user = user
