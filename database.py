@@ -316,3 +316,21 @@ class Database:
                     station_name=row["station_name"]
                 )
             return None
+    
+    def create_user(self, username, password, station_name):
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO users (username, password, station_name)
+                    VALUES (?, ?, ?)
+                    """,
+                    (username, password, station_name),
+                )
+                conn.commit()
+                return True, "Account registered successfully! You can now log in."
+        except sqlite3.IntegrityError:
+            return False, "Username already exists. Please choose a different one."
+        except Exception as e:
+            return False, f"An error occurred during registration: {e}"
