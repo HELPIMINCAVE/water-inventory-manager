@@ -57,9 +57,8 @@ class SaleItem:
 class User(BaseModel):
     user_id: Optional[int] = None
     username: str
-    password_hash: str
+    password_hash: Optional[str] = None
     station_name: str = "Water Station"
-
 
 class Expense(BaseModel):
     expense_id: Optional[int] = None

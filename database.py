@@ -288,16 +288,19 @@ class Database:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT * FROM users WHERE username = ? AND password = ?",
-                (username, password)
+                """
+                SELECT user_id, username, station_name, password FROM users
+                WHERE username = ? AND password = ?
+                """,
+                (username, password),
             )
             row = cursor.fetchone()
-            
             if row:
                 return User(
                     user_id=row["user_id"],
                     username=row["username"],
-                    station_name=row["station_name"]
+                    station_name=row["station_name"],
+                    password_hash=row["password"],
                 )
             return None
     
