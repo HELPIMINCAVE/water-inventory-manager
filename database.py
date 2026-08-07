@@ -1,323 +1,187 @@
 import sqlite3
 from contextlib import contextmanager
-from typing import Optional
+from typing import *
 from models import *
 
-
 class Database:
-
     def __init__(self, db_path: str = "water_station.db"):
         self.db_path = db_path
-        self._migrate_db()
-        self.initialize_tables()
-    
-    def _migrate_db(self):
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            
-            cursor.execute("PRAGMA table_info(customers)")
-            columns = [col[1] for col in cursor.fetchall()]
-            
-            if columns and "created_at" not in columns:
-                cursor.execute("ALTER TABLE customers ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
-                
-            conn.commit()
+        self.init_db()
 
-    @contextmanager
-    def get_connection(self):
+    def get_connection(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        try:
-            yield conn
-            conn.commit()
-        except Exception as e:
-            conn.rollback()
-            raise e
-        finally:
-            conn.close()
+        return conn
 
-    def initialize_tables(self):
+    def init_db(self) -> None:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS products (
-                    product_id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    volume_liters REAL NOT NULL,
-                    cost_price REAL NOT NULL,
-                    selling_price REAL NOT NULL,
-                    quantity INTEGER NOT NULL,
-                    reorder_level INTEGER NOT NULL,
-                    is_refill_service INTEGER NOT NULL
-                )
-            """
-            )
-            
             cursor.execute("""
-                        CREATE TABLE IF NOT EXISTS users (
-                            user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            username TEXT UNIQUE NOT NULL,
-                            password TEXT NOT NULL,
-                            station_name TEXT NOT NULL,
-                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                        )
-                    """)
-
-            conn.execute(
-                """
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    station_name TEXT NOT NULL
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS products (
+                    product_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    volume_liters REAL DEFAULT 0.0,
+                    cost_price REAL DEFAULT 0.0,
+                    selling_price REAL DEFAULT 0.0,
+                    quantity INTEGER DEFAULT 0,
+                    reorder_level INTEGER DEFAULT 15,
+                    is_refill_service INTEGER DEFAULT 1
+                )
+            """)
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS customers (
-                    customer_id TEXT PRIMARY KEY,
+                    customer_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
                     phone TEXT NOT NULL,
-                    address TEXT NOT NULL,
-                    last_refill_date TEXT,
+                    address TEXT,
                     avg_interval_days INTEGER DEFAULT 7,
-                    total_orders INTEGER DEFAULT 0
+                    last_refill_date DATE
                 )
-            """
-            )
-
-            conn.execute(
-                """
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS expenses (
+                    expense_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    category TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    description TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS sales (
-                    transaction_id TEXT PRIMARY KEY,
-                    customer_id TEXT,
-                    timestamp TEXT NOT NULL,
-                    subtotal REAL NOT NULL,
-                    tax REAL NOT NULL,
-                    grand_total REAL NOT NULL,
-                    FOREIGN KEY(customer_id) REFERENCES customers(customer_id)
+                    sale_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    customer_id INTEGER,
+                    total_amount REAL NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
-            """
-            )
+            """)
+            conn.commit()
 
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS sale_items (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    transaction_id TEXT NOT NULL,
-                    product_id TEXT NOT NULL,
-                    quantity INTEGER NOT NULL,
-                    unit_price REAL NOT NULL,
-                    line_subtotal REAL NOT NULL,
-                    FOREIGN KEY(transaction_id) REFERENCES sales(transaction_id),
-                    FOREIGN KEY(product_id) REFERENCES products(product_id)
-                )
-            """
-            )
-
-    def add_product(self, product: Product):
+    def verify_user(
+        self, username: str, password: str
+    ) -> Optional[dict[str, Any]]:
         with self.get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO products
-                    (product_id, name, volume_liters, cost_price, selling_price, quantity, reorder_level, is_refill_service)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    product.product_id,
-                    product.name,
-                    product.volume_liters,
-                    product.cost_price,
-                    product.selling_price,
-                    product.quantity,
-                    product.reorder_level,
-                    1 if product.is_refill_service else 0,
-                ),
-            )
-
-    def get_all_products(self) -> list[Product]:
-        with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM products")
-            return [
-                Product(
-                    product_id=row["product_id"],
-                    name=row["name"],
-                    volume_liters=row["volume_liters"],
-                    cost_price=row["cost_price"],
-                    selling_price=row["selling_price"],
-                    quantity=row["quantity"],
-                    reorder_level=row["reorder_level"],
-                    is_refill_service=bool(row["is_refill_service"]),
-                )
-                for row in cursor
-            ]
-
-    def update_product_quantity(self, product_id: str, delta_quantity: int):
-        with self.get_connection() as conn:
-            conn.execute(
-                """
-                UPDATE products
-                SET quantity = quantity + ?
-                WHERE product_id = ?
-                """,
-                (delta_quantity, product_id),
-            )
-
-    def add_customer(self, customer: Customer):
-        with self.get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO customers
-                    (customer_id, name, phone, address, last_refill_date, avg_interval_days, total_orders)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    customer.customer_id,
-                    customer.name,
-                    customer.phone,
-                    customer.address,
-                    customer.last_refill_date,
-                    customer.average_refill_interval_days,
-                    customer.total_orders_placed,
-                ),
-            )
-
-    def get_all_customers(self) -> list[Customer]:
-        with self.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM customers")
-            return [
-                Customer(
-                    customer_id=row["customer_id"],
-                    name=row["name"],
-                    phone=row["phone"],
-                    address=row["address"],
-                    last_refill_date=row["last_refill_date"],
-                    average_refill_interval_days=row["avg_interval_days"],
-                    total_orders_placed=row["total_orders"],
-                )
-                for row in cursor
-            ]
-
-    def get_overdue_customers(self) -> list[ReorderAlert]:
-        with self.get_connection() as conn:
-            cursor = conn.execute(
-                """
-                SELECT
-                    customer_id,
-                    name,
-                    phone,
-                    last_refill_date,
-                    CAST((julianday('now') - julianday(last_refill_date)) AS INTEGER) AS days_since_last_refill,
-                    avg_interval_days
-                FROM customers
-                WHERE last_refill_date IS NOT NULL
-                  AND (julianday('now') - julianday(last_refill_date)) > avg_interval_days
-            """
-            )
-
-            return [
-                ReorderAlert(
-                    customer_id=row["customer_id"],
-                    customer_name=row["name"],
-                    phone=row["phone"],
-                    days_since_last_refill=row["days_since_last_refill"],
-                    is_overdue=True,
-                )
-                for row in cursor
-            ]
-
-    def process_checkout(
-        self,
-        transaction_id: str,
-        customer_id: Optional[str],
-        cart_items: list[SaleItem],
-        subtotal: float,
-        tax: float,
-        grand_total: float,
-    ) -> bool:
-        current_timestamp = datetime.now().isoformat()
-
-        with self.get_connection() as conn:
-            conn.execute(
-                """
-                INSERT INTO sales (transaction_id, customer_id, timestamp, subtotal, tax, grand_total)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    transaction_id,
-                    customer_id,
-                    current_timestamp,
-                    subtotal,
-                    tax,
-                    grand_total,
-                ),
-            )
-
-            for item in cart_items:
-                conn.execute(
-                    """
-                    INSERT INTO sale_items (transaction_id, product_id, quantity, unit_price, line_subtotal)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        transaction_id,
-                        item.product_id,
-                        item.quantity,
-                        item.unit_price,
-                        item.line_subtotal,
-                    ),
-                )
-
-                conn.execute(
-                    """
-                    UPDATE products
-                    SET quantity = quantity - ?
-                    WHERE product_id = ?
-                    """,
-                    (item.quantity, item.product_id),
-                )
-
-            if customer_id:
-                conn.execute(
-                    """
-                    UPDATE customers
-                    SET last_refill_date = DATE('now'),
-                        total_orders = total_orders + 1
-                    WHERE customer_id = ?
-                    """,
-                    (customer_id,),
-                )
-
-        return True
-    
-    def verify_user(self, username, password):
-        with self.get_connection() as conn:
-            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute(
-                """
-                SELECT user_id, username, station_name, password FROM users
-                WHERE username = ? AND password = ?
-                """,
+                "SELECT * FROM users WHERE username = ? AND password = ?",
                 (username, password),
             )
             row = cursor.fetchone()
             if row:
-                return User(
-                    user_id=row["user_id"],
-                    username=row["username"],
-                    station_name=row["station_name"],
-                    password_hash=row["password"],
-                )
+                return dict(row)
             return None
-    
-    def create_user(self, username, password, station_name):
+
+    def create_user(
+        self, username: str, password: str, station_name: str
+    ) -> Tuple[bool, str]:
         try:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    """
-                    INSERT INTO users (username, password, station_name)
-                    VALUES (?, ?, ?)
-                    """,
+                    "INSERT INTO users (username, password, station_name)"
+                    " VALUES (?, ?, ?)",
                     (username, password, station_name),
                 )
                 conn.commit()
-                return True, "Account registered successfully! You can now log in."
+                return True, "Registered successfully!"
         except sqlite3.IntegrityError:
-            return False, "Username already exists. Please choose a different one."
-        except Exception as e:
-            return False, f"An error occurred during registration: {e}"
+            return False, "Username already exists."
+
+    def add_product(
+        self,
+        user_id: int,
+        name: str,
+        volume_liters: float,
+        cost_price: float,
+        selling_price: float,
+        quantity: int,
+        reorder_level: int,
+        is_refill_service: bool,
+    ) -> None:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO products (user_id, name, volume_liters, cost_price, selling_price, quantity, reorder_level, is_refill_service)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    user_id,
+                    name,
+                    volume_liters,
+                    cost_price,
+                    selling_price,
+                    quantity,
+                    reorder_level,
+                    1 if is_refill_service else 0,
+                ),
+            )
+            conn.commit()
+
+    def add_customer(
+        self,
+        user_id: int,
+        name: str,
+        phone: str,
+        address: str,
+        avg_interval_days: int,
+    ) -> None:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO customers (user_id, name, phone, address, avg_interval_days, last_refill_date)
+                VALUES (?, ?, ?, ?, ?, date('now'))
+            """,
+                (user_id, name, phone, address, avg_interval_days),
+            )
+            conn.commit()
+
+    def get_cash_flow_totals(self, user_id: int) -> dict[str, float]:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COALESCE(SUM(total_amount), 0.0) FROM sales WHERE"
+                " user_id = ?",
+                (user_id,),
+            )
+            total_sales = float(cursor.fetchone()[0])
+
+            cursor.execute(
+                "SELECT COALESCE(SUM(amount), 0.0) FROM expenses WHERE user_id"
+                " = ?",
+                (user_id,),
+            )
+            total_expenses = float(cursor.fetchone()[0])
+
+            return {
+                "total_sales": total_sales,
+                "total_expenses": total_expenses,
+                "net_profit": total_sales - total_expenses,
+            }
+
+    def record_expense(
+        self, user_id: int, category: str, amount: float, description: str
+    ) -> None:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO expenses (user_id, category, amount, description)
+                VALUES (?, ?, ?, ?)
+            """,
+                (user_id, category, amount, description),
+            )
+            conn.commit()
