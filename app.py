@@ -1,5 +1,5 @@
 import os
-from typing import Any, Optional, cast
+from typing import Any, Optional
 import resend
 import streamlit as st
 from database import Database
@@ -7,7 +7,7 @@ from inventory_service import InventoryService
 from models import SaleItem
 
 st.set_page_config(
-    page_title="Water Station Inventory & Retention",
+    page_title="Water Refilling Station POS & Logistics",
     page_icon="💧",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -35,6 +35,7 @@ if "cart" not in st.session_state:
     st.session_state.cart = []
 
 
+# --- Helper Functions ---
 def get_str(obj: Any, key: str, default: str = "") -> str:
     val = (
         obj.get(key, default)
@@ -70,10 +71,7 @@ def get_float(obj: Any, key: str, default: float = 0.0) -> float:
 
 def send_email_notification(to_email: str, subject: str, body: str) -> bool:
     if not RESEND_KEY:
-        st.warning(
-            "Resend API key is not configured. Add RESEND_API_KEY to"
-            " .streamlit/secrets.toml"
-        )
+        st.warning("Resend API key is not configured in secrets.")
         return False
     try:
         resend.Emails.send(
@@ -91,7 +89,7 @@ def send_email_notification(to_email: str, subject: str, body: str) -> bool:
 
 
 def show_auth_page() -> None:
-    st.title("💧 Water Refilling Station Manager")
+    st.title("💧 Water Station POS & Logistics System")
 
     tab_login, tab_register = st.tabs(
         ["🔒 Log In", "📝 Register New Station"]
@@ -108,22 +106,22 @@ def show_auth_page() -> None:
                 st.session_state.authenticated = True
                 st.session_state.user = user_data
                 st.success(
-                    f"Welcome back, {get_str(user_data, 'station_name')}!"
+                    f"Welcome back, {get_str(user_data, 'username')}!"
                 )
                 st.rerun()
             else:
                 st.error("Invalid username or password.")
 
     with tab_register:
-        st.subheader("Create a Station Account")
+        st.subheader("Create a Station Account (Admin)")
         reg_station = st.text_input("Station Name (e.g., Crystal Pure Water)")
-        reg_username = st.text_input("Choose Username")
+        reg_username = st.text_input("Choose Admin Username")
         reg_password = st.text_input("Choose Password", type="password")
 
         if st.button("Register Account", use_container_width=True):
             if reg_station and reg_username and reg_password:
                 success, msg = db.create_user(
-                    reg_username, reg_password, reg_station
+                    reg_username, reg_password, reg_station, role="admin"
                 )
                 if success:
                     st.success(msg)
@@ -138,20 +136,27 @@ def show_dashboard() -> None:
     user_id = get_int(current_user, "user_id")
     station_name = get_str(current_user, "station_name", "Water Station")
     username = get_str(current_user, "username", "User")
+    user_role = get_str(current_user, "role", "cashier")
 
     with st.sidebar:
         st.title(f"💧 {station_name}")
-        st.caption(f"Logged in as: **{username}**")
+        st.caption(f"User: **{username}** | Role: `{user_role.upper()}`")
 
-        menu = st.radio(
-            "Navigation",
-            [
+        if user_role == "cashier":
+            menu_options = ["🛒 Point of Sale", "👥 Customer Retention"]
+        elif user_role == "rider":
+            menu_options = ["🚚 Delivery Dispatch"]
+        else:
+            menu_options = [
                 "🛒 Point of Sale",
                 "📦 Products & Inventory",
                 "👥 Customer Retention",
+                "🚚 Delivery Dispatch",
                 "💵 Cash Flow & Expenses",
-            ],
-        )
+                "⚙️ Staff & Security",
+            ]
+
+        menu = st.radio("Navigation", menu_options)
 
         st.divider()
         if st.button("Log Out", use_container_width=True):
@@ -167,14 +172,13 @@ def show_dashboard() -> None:
 
         products = inventory_svc.get_all_products(user_id=user_id)
         customers = inventory_svc.get_all_customers(user_id=user_id)
+        staff_members = db.get_staff_list(user_id=user_id)
+        riders = [s for s in staff_members if s.get("role") == "rider"]
 
         with col_products:
             st.subheader("Available Products / Services")
             if not products:
-                st.info(
-                    "No products found. Add products in the 'Products &"
-                    " Inventory' tab first."
-                )
+                st.info("No products found. Add products in Inventory tab.")
             else:
                 for prod in products:
                     prod_id = get_int(prod, "product_id")
@@ -182,12 +186,16 @@ def show_dashboard() -> None:
                     prod_vol = get_float(prod, "volume_liters")
                     prod_price = get_float(prod, "selling_price")
                     prod_qty = get_int(prod, "quantity")
+                    prod_empty = get_int(prod, "empty_quantity")
 
                     with st.container(border=True):
                         c1, c2, c3 = st.columns([3, 2, 2])
                         with c1:
                             st.markdown(f"**{prod_name}** ({prod_vol:.1f}L)")
-                            st.caption(f"Stock: **{prod_qty}** available")
+                            st.caption(
+                                f"Filled: **{prod_qty}** | Empties:"
+                                f" **{prod_empty}**"
+                            )
                         with c2:
                             st.markdown(f"**₱{prod_price:.2f}**")
                         with c3:
@@ -206,10 +214,7 @@ def show_dashboard() -> None:
                                     unit_price=prod_price,
                                 )
                                 st.session_state.cart.append(item)
-                                st.toast(
-                                    f"Added {qty}x {prod_name} to cart!",
-                                    icon="🛒",
-                                )
+                                st.toast(f"Added {qty}x {prod_name}", icon="🛒")
 
         with col_cart:
             st.subheader("Current Order")
@@ -237,29 +242,57 @@ def show_dashboard() -> None:
                     st.rerun()
 
                 st.divider()
-                st.markdown(f"### Total: **₱{total_sum:.2f}**")
+
+                order_type = st.radio(
+                    "Order Type",
+                    ["walk_in", "phone_order", "delivery"],
+                    format_func=lambda x: x.replace("_", " ").title(),
+                    horizontal=True,
+                )
+
+                assigned_rider_id: Optional[int] = None
+                if order_type == "delivery":
+                    rider_opts = {0: "-- Select Rider --"}
+                    for r in riders:
+                        rider_opts[get_int(r, "user_id")] = get_str(
+                            r, "username"
+                        )
+                    sel_rider = st.selectbox(
+                        "Assign Delivery Rider",
+                        options=list(rider_opts.keys()),
+                        format_func=lambda x: rider_opts[x],
+                    )
+                    assigned_rider_id = sel_rider if sel_rider != 0 else None
 
                 cust_options: dict[int, str] = {0: "-- Walk-in Customer --"}
                 for c in customers:
                     cid = get_int(c, "customer_id")
                     cname = get_str(c, "name")
-                    cphone = get_str(c, "phone")
-                    cust_options[cid] = (
-                        f"{cname} ({cphone})" if cphone else cname
-                    )
+                    credits = get_int(c, "prepaid_credits")
+                    cust_options[cid] = f"{cname} ({credits} Prepaid Credits)"
 
                 selected_cust = st.selectbox(
-                    "Link to Customer (for Refill Tracking)",
+                    "Link Customer",
                     options=list(cust_options.keys()),
                     format_func=lambda x: cust_options[x],
                 )
-
                 customer_id = (
                     int(selected_cust) if selected_cust != 0 else None
                 )
 
+                use_credits = False
+                if customer_id:
+                    use_credits = st.checkbox(
+                        "Pay using Prepaid Refill Credits"
+                    )
+
+                if use_credits:
+                    st.markdown("### Total: **₱0.00** (Prepaid)")
+                else:
+                    st.markdown(f"### Total: **₱{total_sum:.2f}**")
+
                 if st.button(
-                    "Complete Transaction",
+                    "Process & Checkout",
                     type="primary",
                     use_container_width=True,
                 ):
@@ -267,19 +300,26 @@ def show_dashboard() -> None:
                         user_id=user_id,
                         cart_items=st.session_state.cart,
                         customer_id=customer_id,
+                        order_type=order_type,
+                        rider_id=assigned_rider_id,
+                        use_prepaid_credits=use_credits,
                     )
 
                     if success:
                         st.success(msg)
+                        with st.expander("🧾 Print Digital Receipt", expanded=True):
+                            st.markdown(f"### {station_name}")
+                            st.text(f"Order Type: {order_type.upper()}")
+                            st.text(f"Items Total: ₱{total_sum:.2f}")
+                            st.caption("Thank you for your business!")
                         st.session_state.cart = []
-                        st.rerun()
                     else:
                         st.error(msg)
 
     elif menu == "📦 Products & Inventory":
-        st.header("📦 Inventory Management")
+        st.header("📦 Inventory & Container Management")
 
-        tab1, tab2 = st.tabs(["View Stock", "➕ Add New Item"])
+        tab1, tab2 = st.tabs(["Stock Overview", "➕ Add Product / Container"])
 
         with tab1:
             products = inventory_svc.get_all_products(user_id=user_id)
@@ -290,57 +330,45 @@ def show_dashboard() -> None:
                         "ID": get_int(p, "product_id"),
                         "Product Name": get_str(p, "name"),
                         "Volume (L)": get_float(p, "volume_liters"),
-                        "Cost Price": f"₱{get_float(p, 'cost_price'):.2f}",
                         "Selling Price": (
                             f"₱{get_float(p, 'selling_price'):.2f}"
                         ),
-                        "Current Stock": get_int(p, "quantity"),
+                        "Filled Stock": get_int(p, "quantity"),
+                        "Empty Containers": get_int(p, "empty_quantity"),
                         "Reorder Level": get_int(p, "reorder_level"),
-                        "Is Refill Service": (
-                            "Yes" if get_int(p, "is_refill_service") else "No"
-                        ),
                     })
                 st.dataframe(prod_data, use_container_width=True)
             else:
-                st.info("No products available.")
+                st.info("No items in inventory.")
 
         with tab2:
-            st.subheader("Add Product / Container / Refill Service")
+            st.subheader("Add Item or Service")
             with st.form("add_product_form"):
                 p_name = st.text_input(
                     "Item Name (e.g., 5-Gallon Slim Refill)"
                 )
                 p_vol = float(
-                    st.number_input(
-                        "Volume in Liters", min_value=0.0, value=18.9, step=0.1
-                    )
+                    st.number_input("Volume (Liters)", min_value=0.0, value=18.9)
                 )
                 p_cost = float(
-                    st.number_input(
-                        "Cost Price (₱)", min_value=0.0, value=15.0, step=1.0
-                    )
+                    st.number_input("Cost Price (₱)", min_value=0.0, value=15.0)
                 )
                 p_price = float(
-                    st.number_input(
-                        "Selling Price (₱)", min_value=0.0, value=35.0, step=1.0
-                    )
+                    st.number_input("Selling Price (₱)", min_value=0.0, value=35.0)
                 )
                 p_qty = int(
+                    st.number_input("Filled Quantity", min_value=0, value=100)
+                )
+                p_empty = int(
                     st.number_input(
-                        "Initial Stock Quantity", min_value=0, value=100
+                        "Empty Containers On-hand", min_value=0, value=20
                     )
                 )
                 p_reorder = int(
-                    st.number_input(
-                        "Reorder Level Alert", min_value=0, value=15
-                    )
-                )
-                p_is_refill = bool(
-                    st.checkbox("Is this a refill service?", value=True)
+                    st.number_input("Low Stock Alert Level", min_value=0, value=15)
                 )
 
-                submitted = st.form_submit_button("Save Item")
-                if submitted:
+                if st.form_submit_button("Save Item"):
                     if p_name:
                         db.add_product(
                             user_id=user_id,
@@ -350,179 +378,173 @@ def show_dashboard() -> None:
                             selling_price=p_price,
                             quantity=p_qty,
                             reorder_level=p_reorder,
-                            is_refill_service=p_is_refill,
+                            is_refill_service=True,
                         )
                         st.success(f"Added '{p_name}' successfully!")
                         st.rerun()
                     else:
-                        st.error("Please enter an item name.")
+                        st.error("Please provide an item name.")
 
     elif menu == "👥 Customer Retention":
-        st.header("👥 Retention Alerts & Refill Schedules")
+        st.header("👥 Retention Alerts & Refill Cards")
 
-        tab_alerts, tab_customers, tab_add = st.tabs(
-            ["⚠️ Overdue Refill Alerts", "All Customers", "➕ Register Customer"]
+        tab_alerts, tab_customers, tab_prepaid = st.tabs(
+            ["⚠️ Overdue Alerts", "Customer Directory", "💳 Refill Cards & Deposits"]
         )
 
         with tab_alerts:
             alerts = inventory_svc.get_overdue_refill_customers(user_id=user_id)
             if not alerts:
-                st.success(
-                    "🎉 All regular customers are up-to-date with their refill"
-                    " schedules!"
-                )
+                st.success("🎉 All regular customers are up-to-date!")
             else:
-                st.warning(
-                    f"Found {len(alerts)} customer(s) past their regular refill"
-                    " interval."
-                )
                 for alert in alerts:
                     cid = get_int(alert, "customer_id")
                     cname = get_str(alert, "customer_name")
-                    cphone = get_str(alert, "phone")
-                    interval = get_int(alert, "avg_interval_days")
                     days_since = get_int(alert, "days_since_last_refill")
 
                     with st.container(border=True):
                         c1, c2, c3 = st.columns([3, 2, 2])
-                        with c1:
-                            st.markdown(f"**{cname}** ({cphone})")
-                            st.caption(
-                                f"Normal refill cycle: every **{interval}**"
-                                " days"
-                            )
-                        with c2:
-                            st.error(
-                                f"**{days_since} days** since last refill"
-                            )
-                        with c3:
-                            email = st.text_input(
-                                "Send Reminder Email",
-                                placeholder="customer@email.com",
-                                key=f"email_{cid}",
-                            )
-                            if st.button(
-                                "📧 Send Reminder", key=f"btn_remind_{cid}"
-                            ):
-                                if email:
-                                    subject = (
-                                        f"Time for a refill from {station_name}!"
-                                        " 💧"
-                                    )
-                                    body = (
-                                        f"Hi {cname}, it has been"
-                                        f" {days_since} days since your last"
-                                        " water refill! Reply or call us to"
-                                        " schedule delivery."
-                                    )
-                                    if send_email_notification(
-                                        email, subject, body
-                                    ):
-                                        st.success("Reminder email sent!")
-                                else:
-                                    st.warning("Please enter an email address.")
+                        c1.markdown(f"**{cname}** ({get_str(alert, 'phone')})")
+                        c2.error(f"**{days_since} days** past refill")
+                        email = c3.text_input(
+                            "Email Reminder", key=f"email_{cid}"
+                        )
+                        if c3.button("📧 Send", key=f"btn_remind_{cid}"):
+                            if email:
+                                if send_email_notification(
+                                    email,
+                                    f"Refill Reminder from {station_name}",
+                                    f"Hi {cname}, it has been {days_since} days"
+                                    " since your last refill!",
+                                ):
+                                    st.success("Reminder sent!")
 
         with tab_customers:
             customers = inventory_svc.get_all_customers(user_id=user_id)
             if customers:
-                c_data = []
-                for c in customers:
-                    c_data.append({
-                        "ID": get_int(c, "customer_id"),
-                        "Name": get_str(c, "name"),
-                        "Phone": get_str(c, "phone"),
-                        "Address": get_str(c, "address"),
-                        "Expected Refill Interval": (
-                            f"Every {get_int(c, 'avg_interval_days')} days"
-                        ),
-                    })
-                st.dataframe(c_data, use_container_width=True)
-            else:
-                st.info("No customers registered yet.")
+                st.dataframe(customers, use_container_width=True)
 
-        with tab_add:
-            st.subheader("Register Regular Customer")
-            with st.form("add_customer_form"):
-                c_name = st.text_input("Customer Name")
-                c_phone = st.text_input("Phone Number")
-                c_address = st.text_area("Delivery Address")
-                c_interval = int(
-                    st.number_input(
-                        "Expected Refill Cycle (Days)", min_value=1, value=7
-                    )
+        with tab_prepaid:
+            st.subheader("Manage Prepaid Cards & Jug Deposits")
+            customers = inventory_svc.get_all_customers(user_id=user_id)
+            if customers:
+                c_map = {
+                    get_int(c, "customer_id"): get_str(c, "name")
+                    for c in customers
+                }
+                target_c = st.selectbox(
+                    "Select Customer",
+                    options=list(c_map.keys()),
+                    format_func=lambda x: c_map[x],
                 )
 
-                c_submitted = st.form_submit_button("Register Customer")
-                if c_submitted:
-                    if c_name and c_phone:
-                        db.add_customer(
-                            user_id=user_id,
-                            name=c_name,
-                            phone=c_phone,
-                            address=c_address,
-                            avg_interval_days=c_interval,
+                with st.form("credits_form"):
+                    add_credits = int(
+                        st.number_input(
+                            "Add Prepaid Refill Credits", min_value=0, value=10
                         )
-                        st.success(f"Registered customer '{c_name}'!")
+                    )
+                    add_deposits = int(
+                        st.number_input(
+                            "Add Container Deposit Count", min_value=0, value=2
+                        )
+                    )
+                    if st.form_submit_button("Update Balance"):
+                        db.update_customer_credits(
+                            target_c, add_credits, add_deposits
+                        )
+                        st.success("Customer account updated!")
                         st.rerun()
-                    else:
-                        st.error("Name and Phone number are required.")
 
-    # --- TAB 4: Cash Flow & Expenses ---
+    elif menu == "🚚 Delivery Dispatch":
+        st.header("🚚 Delivery Management & Route Dispatch")
+
+        deliveries = inventory_svc.get_dispatch_deliveries(user_id=user_id)
+        if deliveries:
+            for d in deliveries:
+                with st.container(border=True):
+                    c1, c2, c3 = st.columns([3, 3, 2])
+                    c1.markdown(
+                        f"**Customer:** {d['customer_name']} ({d['phone']})"
+                    )
+                    c1.caption(f"📍 **Address:** {d['address']}")
+                    c2.markdown(
+                        f"**Status:** `{d['status'].upper()}` | Rider:"
+                        f" **{d['rider_name'] or 'Unassigned'}**"
+                    )
+                    if d["status"] == "pending":
+                        if c3.button(
+                            "Mark Delivered", key=f"deliv_{d['sale_id']}"
+                        ):
+                            st.success("Delivery confirmed!")
+                            st.rerun()
+        else:
+            st.info("No active delivery orders.")
+
     elif menu == "💵 Cash Flow & Expenses":
-        st.header("💵 Cash Flow & Operational Expenses")
+        st.header("💵 Financial Reports & Expenses")
 
         summary = db.get_cash_flow_totals(user_id=user_id)
-        total_sales = get_float(summary, "total_sales")
-        total_expenses = get_float(summary, "total_expenses")
-        net_profit = get_float(summary, "net_profit")
-
         m1, m2, m3 = st.columns(3)
-        m1.metric("Total Sales Revenue", f"₱{total_sales:.2f}")
-        m2.metric("Total Expenses", f"₱{total_expenses:.2f}")
-        m3.metric(
-            "Net Profit", f"₱{net_profit:.2f}", delta=f"{net_profit:.2f}"
+        m1.metric("Total Sales", f"₱{get_float(summary, 'total_sales'):.2f}")
+        m2.metric(
+            "Total Expenses", f"₱{get_float(summary, 'total_expenses'):.2f}"
         )
+        m3.metric("Net Profit", f"₱{get_float(summary, 'net_profit'):.2f}")
 
         st.divider()
-        st.subheader("Record Operational Expense")
+        st.subheader("Record Expense")
         with st.form("expense_form"):
-            col_exp1, col_exp2 = st.columns(2)
-            with col_exp1:
-                category = st.selectbox(
-                    "Expense Category",
-                    [
-                        "Water Supply / Deep Well Fee",
-                        "Electricity / Power",
-                        "Fuel / Delivery",
-                        "Maintenance & Filters",
-                        "Staff Salaries",
-                        "Misc",
-                    ],
+            cat = st.selectbox(
+                "Category", ["Utilities", "Fuel", "Wages", "Maintenance"]
+            )
+            amt = float(
+                st.number_input("Amount (₱)", min_value=0.0, value=100.0)
+            )
+            desc = st.text_area("Notes")
+            if st.form_submit_button("Record Expense"):
+                db.record_expense(
+                    user_id=user_id, category=cat, amount=amt, description=desc
                 )
-                exp_amount = float(
-                    st.number_input(
-                        "Amount (₱)", min_value=0.0, value=100.0, step=10.0
-                    )
-                )
-            with col_exp2:
-                description = st.text_area("Description / Notes")
+                st.success("Expense recorded!")
+                st.rerun()
 
-            exp_submitted = st.form_submit_button("Record Expense")
-            if exp_submitted:
-                if exp_amount > 0:
-                    db.record_expense(
-                        user_id=user_id,
-                        category=category,
-                        amount=exp_amount,
-                        description=description,
+    elif menu == "⚙️ Staff & Security":
+        st.header("⚙️ User Accounts & Data Security")
+
+        tab_staff, tab_backup = st.tabs(["Manage Staff", "💾 Data Security"])
+
+        with tab_staff:
+            st.subheader("Create Sub-Account (Cashier or Rider)")
+            with st.form("add_staff_form"):
+                s_user = st.text_input("Username")
+                s_pass = st.text_input("Password", type="password")
+                s_role = st.selectbox("Role", ["cashier", "rider", "admin"])
+
+                if st.form_submit_button("Create Account"):
+                    ok, msg = db.create_user(
+                        s_user, s_pass, station_name=station_name, role=s_role
                     )
-                    st.success(
-                        f"Recorded expense of ₱{exp_amount:.2f} under"
-                        f" {category}."
+                    if ok:
+                        st.success(msg)
+                    else:
+                        st.error(msg)
+
+        with tab_backup:
+            st.subheader("Database Backup")
+            st.caption(
+                "Download your local SQLite file for offsite backup safety."
+            )
+            if os.path.exists("water_station.db"):
+                with open("water_station.db", "rb") as f:
+                    st.download_button(
+                        label="⬇️ Download Database Backup",
+                        data=f,
+                        file_name="water_station_backup.db",
+                        mime="application/x-sqlite3",
+                        use_container_width=True,
                     )
-                    st.rerun()
-                else:
-                    st.error("Expense amount must be greater than zero.")
+
 
 if __name__ == "__main__":
     if st.session_state.authenticated and st.session_state.user:
