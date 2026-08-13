@@ -30,6 +30,27 @@ class InventoryService:
             )
             return [dict(row) for row in cursor.fetchall()]
 
+    def get_overdue_refill_customers(
+        self, user_id: Optional[int] = None
+    ) -> List[dict[str, Any]]:
+        if user_id is None:
+            return []
+        with self.db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT *,
+                       CAST(julianday('now') - julianday(last_refill_date) AS INTEGER) AS days_since_last_refill,
+                       name AS customer_name
+                FROM customers
+                WHERE user_id = ?
+                  AND last_refill_date IS NOT NULL
+                  AND (julianday('now') - julianday(last_refill_date)) > avg_interval_days
+            """,
+                (user_id,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
     def checkout(
         self,
         user_id: int,
@@ -69,7 +90,10 @@ class InventoryService:
                     )
                     total_amount = 0.0
                 else:
-                    return False, "Insufficient prepaid card credits."
+                    return (
+                        False,
+                        "Insufficient prepaid credits on customer account.",
+                    )
 
             status = "pending" if order_type == "delivery" else "completed"
 
