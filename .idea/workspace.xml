@@ -5,6 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f2cd258a-49fe-4dd8-82e6-0e1c1f1dfae2" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/security_utils.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -46,61 +47,61 @@
   </component>
   <component name="NextEditCompletionFeaturesState">
     <decayedCancelled>
-      <entry key="MS100" value="1.000000501686194" />
-      <entry key="MS500" value="1.160235173404593" />
-      <entry key="S2" value="5.545130304913453" />
-      <entry key="S5" value="14.219530164756542" />
-      <entry key="S10" value="21.40832884091424" />
-      <entry key="S30" value="32.87671742201843" />
-      <entry key="S60" value="50.752442716103424" />
-      <entry key="M2" value="76.63187231630735" />
-      <entry key="M5" value="106.4726257123727" />
-      <entry key="M10" value="127.82958834289012" />
-      <entry key="M15" value="149.41967374774308" />
-      <entry key="M30" value="234.31940316393187" />
-      <entry key="H1" value="408.9712552362133" />
-      <entry key="H2" value="629.1971345591841" />
-      <entry key="H4" value="816.1196805766207" />
-      <entry key="D1" value="1037.3274390576757" />
-      <entry key="W1" value="1083.1116451038645" />
+      <entry key="MS100" value="1.0014497322699558" />
+      <entry key="MS500" value="1.3135350730019935" />
+      <entry key="S2" value="4.66398952829367" />
+      <entry key="S5" value="13.225525245679712" />
+      <entry key="S10" value="22.725858625175437" />
+      <entry key="S30" value="35.336234071948034" />
+      <entry key="S60" value="42.86496556897463" />
+      <entry key="M2" value="62.26288051648079" />
+      <entry key="M5" value="109.95329833056573" />
+      <entry key="M10" value="149.77252352165806" />
+      <entry key="M15" value="178.8340330325648" />
+      <entry key="M30" value="270.0616231986656" />
+      <entry key="H1" value="447.88993341353483" />
+      <entry key="H2" value="673.002419195924" />
+      <entry key="H4" value="865.6132216537621" />
+      <entry key="D1" value="1095.0995896122572" />
+      <entry key="W1" value="1142.7792567680453" />
     </decayedCancelled>
     <decayedSelected>
-      <entry key="MS100" value="0.011359160291564927" />
-      <entry key="MS500" value="0.40838449555501133" />
-      <entry key="S2" value="0.7994058303524723" />
-      <entry key="S5" value="0.9143383409625068" />
-      <entry key="S10" value="0.9563306299487108" />
-      <entry key="S30" value="1.0345409782030617" />
-      <entry key="S60" value="1.2147267946920401" />
-      <entry key="M2" value="1.467617577992363" />
-      <entry key="M5" value="1.7465970195191953" />
-      <entry key="M10" value="2.0403238027345987" />
-      <entry key="M15" value="2.580445382437715" />
-      <entry key="M30" value="6.227442625082587" />
-      <entry key="H1" value="17.098649348205115" />
-      <entry key="H2" value="33.47562853883283" />
-      <entry key="H4" value="48.5744851089754" />
-      <entry key="D1" value="67.33567840083415" />
-      <entry key="W1" value="71.3120675286084" />
+      <entry key="MS100" value="0.0" />
+      <entry key="MS500" value="6.832886591627067E-160" />
+      <entry key="S2" value="1.6167804651623001E-40" />
+      <entry key="S5" value="1.2118822599352493E-16" />
+      <entry key="S10" value="1.1009936500596227E-8" />
+      <entry key="S30" value="0.0023360023780107453" />
+      <entry key="S60" value="0.057722004287983825" />
+      <entry key="M2" value="0.31992214314488565" />
+      <entry key="M5" value="0.9496537182357662" />
+      <entry key="M10" value="1.504476385177752" />
+      <entry key="M15" value="2.1061316958211105" />
+      <entry key="M30" value="5.626070388108588" />
+      <entry key="H1" value="16.25210124870027" />
+      <entry key="H2" value="32.636426253815976" />
+      <entry key="H4" value="47.96176248617503" />
+      <entry key="D1" value="67.19336559622138" />
+      <entry key="W1" value="71.29051702432909" />
     </decayedSelected>
     <decayedShown>
-      <entry key="MS100" value="0.12425577173561819" />
-      <entry key="MS500" value="0.980751216072695" />
-      <entry key="S2" value="6.054919069021739" />
-      <entry key="S5" value="14.96423542442177" />
-      <entry key="S10" value="22.25635528348705" />
-      <entry key="S30" value="33.862997755203445" />
-      <entry key="S60" value="51.9354817096367" />
-      <entry key="M2" value="78.07868064597314" />
-      <entry key="M5" value="108.20860828507676" />
-      <entry key="M10" value="129.86293776923415" />
-      <entry key="M15" value="151.99352986280851" />
-      <entry key="M30" value="240.53798401650232" />
-      <entry key="H1" value="426.05787074037255" />
-      <entry key="H2" value="662.6612328122505" />
-      <entry key="H4" value="864.6859043631424" />
-      <entry key="D1" value="1104.6612292351263" />
-      <entry key="W1" value="1154.4234274867915" />
+      <entry key="MS100" value="0.07973414875907131" />
+      <entry key="MS500" value="0.7919524222317093" />
+      <entry key="S2" value="4.4208190692250655" />
+      <entry key="S5" value="13.096538771183376" />
+      <entry key="S10" value="22.647561888084358" />
+      <entry key="S30" value="35.30620498496536" />
+      <entry key="S60" value="42.90369446463293" />
+      <entry key="M2" value="62.568785903835845" />
+      <entry key="M5" value="110.89299127197339" />
+      <entry key="M10" value="151.26965499846264" />
+      <entry key="M15" value="180.93329004717648" />
+      <entry key="M30" value="275.6789237040305" />
+      <entry key="H1" value="464.130210502469" />
+      <entry key="H2" value="705.627410084872" />
+      <entry key="H4" value="913.5667296858624" />
+      <entry key="D1" value="1162.2910547138679" />
+      <entry key="W1" value="1214.0694864087789" />
     </decayedShown>
   </component>
   <component name="ProjectColorInfo">{
@@ -130,26 +131,26 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
-    &quot;codeWithMe.voiceChat.enabledByDefault&quot;: &quot;false&quot;,
-    &quot;copilot.chat.legacySessionMetadata.migrated&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/ferdinandguiang/water-inventory-manager&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.MCP Project settings loaded": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "copilot.chat.legacySessionMetadata.migrated": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/ferdinandguiang/water-inventory-manager",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
-}</component>
+}]]></component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
