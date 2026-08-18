@@ -1,5 +1,5 @@
 import os
-from typing import Any, Optional
+from typing import Any
 import pandas as pd
 import resend
 import streamlit as st
@@ -8,6 +8,7 @@ from inventory_service import InventoryService
 from models import SaleItem
 from security_utils import generate_otp, validate_strict_password
 
+# --- Page Config ---
 st.set_page_config(
     page_title="Water Station Inventory Manager",
     page_icon="💧",
@@ -15,6 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# --- Service Integrations ---
 RESEND_KEY = st.secrets.get("RESEND_API_KEY", os.getenv("RESEND_API_KEY"))
 if RESEND_KEY:
     resend.api_key = str(RESEND_KEY)
@@ -29,6 +31,7 @@ def get_services() -> tuple[Database, InventoryService]:
 
 db, inventory_svc = get_services()
 
+# --- Session State ---
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "user" not in st.session_state:
@@ -39,6 +42,7 @@ if "otp_store" not in st.session_state:
     st.session_state.otp_store = {}
 
 
+# --- Helpers ---
 def get_str(obj: Any, key: str, default: str = "") -> str:
     val = (
         obj.get(key, default)
@@ -60,13 +64,25 @@ def get_int(obj: Any, key: str, default: int = 0) -> int:
         return default
 
 
+def get_float(obj: Any, key: str, default: float = 0.0) -> float:
+    val = (
+        obj.get(key, default)
+        if isinstance(obj, dict)
+        else getattr(obj, key, default)
+    )
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
 def send_email_notification(to_email: str, subject: str, body: str) -> bool:
     if not RESEND_KEY:
         st.warning("Resend API key is not configured in secrets/environment.")
         return False
     try:
         resend.Emails.send(
-            params={
+            {
                 "from": "Water Station Security <onboarding@resend.dev>",
                 "to": [to_email],
                 "subject": subject,
@@ -78,6 +94,8 @@ def send_email_notification(to_email: str, subject: str, body: str) -> bool:
         st.error(f"Failed to send email: {e}")
         return False
 
+
+# --- Authentication View ---
 def show_auth_page() -> None:
     st.title("💧 Water Station POS & Security Portal")
 
@@ -91,10 +109,12 @@ def show_auth_page() -> None:
         password = st.text_input("Password", type="password", key="login_pass")
 
         if st.button("Log In", type="primary", use_container_width=True):
-            if not username.strip() or not password.strip():
+            clean_u = (username or "").strip()
+            clean_p = (password or "").strip()
+            if not clean_u or not clean_p:
                 st.error("Username and password cannot be blank.")
             else:
-                user_data = db.verify_user(username, password)
+                user_data = db.verify_user(clean_u, clean_p)
                 if user_data:
                     if not get_int(user_data, "is_active", 1):
                         st.error(
@@ -117,8 +137,8 @@ def show_auth_page() -> None:
         user_email = st.text_input("Registered Email", key="otp_email")
 
         if st.button("Send Login OTP"):
-            clean_user = otp_user.strip()
-            clean_email = user_email.strip()
+            clean_user = (otp_user or "").strip()
+            clean_email = (user_email or "").strip()
             if not clean_user or not clean_email:
                 st.error("Username and email fields cannot be blank.")
             else:
@@ -142,11 +162,11 @@ def show_auth_page() -> None:
         if st.button(
             "Verify & Log In via OTP", type="primary", use_container_width=True
         ):
-            clean_user = otp_user.strip()
+            clean_user = (otp_user or "").strip()
+            clean_code = (input_code or "").strip()
             if (
                 clean_user in st.session_state.otp_store
-                and st.session_state.otp_store[clean_user]
-                == input_code.strip()
+                and st.session_state.otp_store[clean_user] == clean_code
             ):
                 user_data = db.get_user_by_username(clean_user)
                 if user_data:
@@ -167,10 +187,10 @@ def show_auth_page() -> None:
         reg_password = st.text_input("Password", type="password")
 
         if st.button("Register Account", use_container_width=True):
-            clean_station = reg_station.strip()
-            clean_username = reg_username.strip()
-            clean_email = reg_email.strip()
-            clean_password = reg_password.strip()
+            clean_station = (reg_station or "").strip()
+            clean_username = (reg_username or "").strip()
+            clean_email = (reg_email or "").strip()
+            clean_password = (reg_password or "").strip()
 
             if not clean_station:
                 st.error("Water Station Name cannot be blank.")
@@ -202,8 +222,9 @@ def show_auth_page() -> None:
                         st.error(db_msg)
 
 
+# --- Dashboard ---
 def show_dashboard() -> None:
-    current_user = st.session_state.user
+    current_user = st.session_state.user or {}
     user_id = get_int(current_user, "user_id")
     station_name = get_str(current_user, "station_name", "Water Station")
     username = get_str(current_user, "username", "User")
@@ -238,12 +259,15 @@ def show_dashboard() -> None:
             st.session_state.cart = []
             st.session_state.otp_logged_in = False
             st.rerun()
-    
+
+    # ==========================================
+    # 🛒 POINT OF SALE
+    # ==========================================
     if menu == "🛒 Point of Sale":
         st.header("🛒 Point of Sale & Checkout")
 
-        products = inventory_svc.get_all_products(user_id=user_id)
-        customers = inventory_svc.get_all_customers(user_id=user_id)
+        products = getattr(inventory_svc, "get_all_products", lambda user_id: [])(user_id=user_id)
+        customers = getattr(inventory_svc, "get_all_customers", lambda user_id: [])(user_id=user_id)
 
         col_left, col_right = st.columns([3, 2])
 
@@ -273,7 +297,6 @@ def show_dashboard() -> None:
                                 st.session_state.cart.append(
                                     SaleItem(
                                         product_id=p_id,
-                                        name=p_name,
                                         quantity=1,
                                         unit_price=p_price,
                                     )
@@ -287,7 +310,7 @@ def show_dashboard() -> None:
                 cart_df = pd.DataFrame(
                     [
                         {
-                            "Item": item.name,
+                            "Product ID": item.product_id,
                             "Qty": item.quantity,
                             "Price": f"₱{item.unit_price:.2f}",
                             "Subtotal": f"₱{item.unit_price * item.quantity:.2f}",
@@ -306,9 +329,7 @@ def show_dashboard() -> None:
                 order_type = st.radio(
                     "Order Type",
                     ["walk_in", "delivery"],
-                    format_func=lambda x: "Walk-In"
-                    if x == "walk_in"
-                    else "Delivery",
+                    format_func=lambda x: "Walk-In" if x == "walk_in" else "Delivery",
                 )
 
                 cust_options = {"None (Anonymous Walk-in)": None}
@@ -336,19 +357,23 @@ def show_dashboard() -> None:
                         type="primary",
                         use_container_width=True,
                     ):
-                        success, msg = inventory_svc.checkout(
-                            user_id=user_id,
-                            cart_items=st.session_state.cart,
-                            customer_id=selected_cust_id,
-                            order_type=order_type,
-                            use_prepaid_credits=use_prepaid,
-                        )
-                        if success:
-                            st.success(msg)
-                            st.session_state.cart = []
-                            st.rerun()
+                        checkout_fn = getattr(inventory_svc, "checkout", None)
+                        if checkout_fn:
+                            success, msg = checkout_fn(
+                                user_id=user_id,
+                                cart_items=st.session_state.cart,
+                                customer_id=selected_cust_id,
+                                order_type=order_type,
+                                use_prepaid_credits=use_prepaid,
+                            )
+                            if success:
+                                st.success(msg)
+                                st.session_state.cart = []
+                                st.rerun()
+                            else:
+                                st.error(msg)
                         else:
-                            st.error(msg)
+                            st.error("Checkout process is not configured.")
             else:
                 st.caption("Cart is empty.")
     
@@ -363,35 +388,37 @@ def show_dashboard() -> None:
                 p_price = st.number_input("Unit Price (₱)", min_value=0.0, value=35.0)
 
                 if st.form_submit_button("Save Product"):
-                    if not p_name.strip():
+                    clean_pname = (p_name or "").strip()
+                    if not clean_pname:
                         st.error("Product Name cannot be blank.")
                     else:
                         with db.get_connection() as conn:
                             cursor = conn.cursor()
                             cursor.execute(
                                 """
-                                INSERT INTO products (user_id, name, quantity, empty_jugs, unit_price)
+                                INSERT INTO products (user_id, name, quantity, empty_quantity, unit_price)
                                 VALUES (?, ?, ?, ?, ?)
                             """,
                                 (
                                     user_id,
-                                    p_name.strip(),
+                                    clean_pname,
                                     p_qty,
                                     p_empty,
                                     p_price,
                                 ),
                             )
-                        st.success(f"Added '{p_name}' to inventory.")
+                            conn.commit()
+                        st.success(f"Added '{clean_pname}' to inventory.")
                         st.rerun()
 
         st.subheader("Current Stock Levels")
-        products = inventory_svc.get_all_products(user_id=user_id)
+        products = getattr(inventory_svc, "get_all_products", lambda user_id: [])(user_id=user_id)
         if products:
             p_df = pd.DataFrame(products)
-            st.dataframe(p_df[["name", "quantity", "empty_jugs", "unit_price"]], use_container_width=True)
+            st.dataframe(p_df, use_container_width=True)
         else:
             st.info("No products available.")
-
+    
     elif menu == "👥 Customer Retention":
         st.header("👥 Customer Management & Loyalty")
 
@@ -402,33 +429,49 @@ def show_dashboard() -> None:
                 c_address = st.text_area("Delivery Address")
 
                 if st.form_submit_button("Save Customer"):
-                    if not c_name.strip():
+                    clean_cname = (c_name or "").strip()
+                    clean_cphone = (c_phone or "").strip()
+                    clean_caddr = (c_address or "").strip()
+
+                    if not clean_cname:
                         st.error("Customer name is required.")
                     else:
-                        inventory_svc.create_customer(
-                            user_id=user_id,
-                            name=c_name.strip(),
-                            phone=c_phone.strip(),
-                            address=c_address.strip(),
-                        )
-                        st.success(f"Customer '{c_name}' created!")
+                        create_cust_fn = getattr(inventory_svc, "create_customer", None)
+                        if create_cust_fn:
+                            create_cust_fn(
+                                user_id=user_id,
+                                name=clean_cname,
+                                phone=clean_cphone,
+                                address=clean_caddr,
+                            )
+                        else:
+                            with db.get_connection() as conn:
+                                cursor = conn.cursor()
+                                cursor.execute(
+                                    """
+                                    INSERT INTO customers (user_id, name, phone, address)
+                                    VALUES (?, ?, ?, ?)
+                                """,
+                                    (user_id, clean_cname, clean_cphone, clean_caddr),
+                                )
+                                conn.commit()
+                        st.success(f"Customer '{clean_cname}' created!")
                         st.rerun()
 
         st.subheader("Customer Directory")
-        customers = inventory_svc.get_all_customers(user_id=user_id)
+        customers = getattr(inventory_svc, "get_all_customers", lambda user_id: [])(user_id=user_id)
         if customers:
             c_df = pd.DataFrame(customers)
-            st.dataframe(
-                c_df[["name", "phone", "address", "unreturned_jugs", "prepaid_credits"]],
-                use_container_width=True,
-            )
+            st.dataframe(c_df, use_container_width=True)
         else:
             st.info("No registered customers.")
-
+    
     elif menu == "🚚 Delivery Dispatch":
         st.header("🚚 Active Delivery Dispatch")
 
-        deliveries = inventory_svc.get_pending_deliveries(user_id=user_id)
+        get_pending_fn = getattr(inventory_svc, "get_pending_deliveries", None)
+        deliveries = get_pending_fn(user_id=user_id) if get_pending_fn else []
+
         if deliveries:
             for d in deliveries:
                 d_id = get_int(d, "delivery_id")
@@ -445,85 +488,109 @@ def show_dashboard() -> None:
 
                     with col_act:
                         if st.button("Mark Delivered", key=f"deliv_{d_id}"):
-                            inventory_svc.complete_delivery(
-                                delivery_id=d_id,
-                                empty_returned=1,
-                            )
+                            comp_fn = getattr(inventory_svc, "complete_delivery", None)
+                            if comp_fn:
+                                comp_fn(delivery_id=d_id, empty_returned=1)
                             st.success("Delivery completed.")
                             st.rerun()
         else:
             st.info("No active deliveries.")
-
+    
     elif menu == "⚙️ Security & Account Settings":
         st.header("⚙️ Security & Account Settings")
 
-        col1, col2 = st.columns(2)
+        tab_reset_pass, tab_deactivate = st.tabs(
+            ["🔑 Reset Password (via OTP)", "⚠️ Deactivate Account"]
+        )
 
-        with col1:
-            st.subheader("🔑 Change Password")
-            with st.form("change_password_form"):
-                old_pass = st.text_input("Current Password", type="password")
-                new_pass = st.text_input("New Password", type="password")
-                confirm_pass = st.text_input(
-                    "Confirm New Password", type="password"
-                )
+        with tab_reset_pass:
+            st.subheader("Change Account Password")
+            st.caption(
+                "Must contain 8+ chars, 1 uppercase, 1 number, 1 symbol, no"
+                " repeating/ordered patterns, and cannot equal username."
+            )
 
-                if st.form_submit_button("Update Password"):
-                    if not new_pass or not confirm_pass:
-                        st.error("Fields cannot be empty.")
-                    elif new_pass != confirm_pass:
-                        st.error("New passwords do not match.")
+            new_pass = st.text_input("New Password", type="password", key="reset_new_pass")
+            confirm_pass = st.text_input("Confirm New Password", type="password", key="reset_conf_pass")
+
+            if st.button("Request Confirmation OTP"):
+                clean_new = (new_pass or "").strip()
+                clean_conf = (confirm_pass or "").strip()
+
+                if not clean_new:
+                    st.error("New password cannot be blank.")
+                elif clean_new != clean_conf:
+                    st.error("Passwords do not match.")
+                elif username.lower() == clean_new.lower():
+                    st.error("Password cannot be the same as your username.")
+                else:
+                    is_valid, msg = validate_strict_password(clean_new, username=username)
+                    if not is_valid:
+                        st.error(msg)
                     else:
-                        success, msg = db.change_password(
-                            user_id, old_pass, new_pass
-                        )
-                        if success:
-                            st.success(msg)
-                            st.session_state.otp_logged_in = False
-                        else:
-                            st.error(msg)
+                        otp_code = generate_otp()
+                        st.session_state.otp_store[f"reset_{username}"] = {
+                            "code": otp_code,
+                            "new_password": clean_new,
+                        }
+                        if user_email and send_email_notification(
+                            user_email,
+                            "Confirm Password Reset OTP",
+                            f"Your password reset OTP is: <strong>{otp_code}</strong>",
+                        ):
+                            st.success("Confirmation OTP sent to your email!")
 
-        with col2:
-            st.subheader("⚠️ Account Danger Zone")
-            st.warning("Deactivating your account will disable system access.")
-
-            if st.button("Initiate Account Deactivation"):
-                code = generate_otp()
-                st.session_state.deactivate_otp = code
-                if user_email and send_email_notification(
-                    user_email,
-                    "Account Deactivation Code",
-                    f"Your code is: <strong>{code}</strong>",
-                ):
-                    st.success(f"Deactivation OTP sent to {user_email}.")
-
-            if "deactivate_otp" in st.session_state:
-                deact_input = st.text_input("Enter Deactivation OTP")
-                if st.button("Confirm Deactivation", type="primary"):
-                    if (
-                        deact_input.strip()
-                        == st.session_state.deactivate_otp
-                    ):
-                        db.deactivate_user(user_id)
-                        st.session_state.authenticated = False
-                        st.session_state.user = None
-                        st.success("Account deactivated.")
-                        st.rerun()
+            confirm_otp = st.text_input("Enter Confirmation OTP", key="conf_reset_otp")
+            if st.button("Confirm & Update Password", type="primary", use_container_width=True):
+                reset_data = st.session_state.otp_store.get(f"reset_{username}")
+                clean_otp = (confirm_otp or "").strip()
+                if reset_data and reset_data["code"] == clean_otp:
+                    success = db.update_user_password(user_id, reset_data["new_password"])
+                    if success:
+                        st.success("Password updated successfully! Please log in using your new credentials.")
+                        st.session_state.otp_logged_in = False
+                        del st.session_state.otp_store[f"reset_{username}"]
                     else:
-                        st.error("Invalid OTP.")
+                        st.error("Database update failed.")
+                else:
+                    st.error("Invalid confirmation OTP.")
 
+        with tab_deactivate:
+            st.subheader("Deactivate Account")
+            st.warning("Deactivating your account disables future access for this user.")
 
-def get_float(obj: Any, key: str, default: float = 0.0) -> float:
-    val = (
-        obj.get(key, default)
-        if isinstance(obj, dict)
-        else getattr(obj, key, default)
-    )
-    try:
-        return float(val)
-    except (ValueError, TypeError):
-        return default
+            deact_pass = st.text_input("Current Password", type="password", key="deact_pass")
 
+            if st.button("Request Deactivation OTP"):
+                clean_deact_p = (deact_pass or "").strip()
+                if not clean_deact_p:
+                    st.error("Password cannot be blank.")
+                else:
+                    user_check = db.verify_user(username, clean_deact_p)
+                    if user_check:
+                        deact_otp = generate_otp()
+                        st.session_state.otp_store[f"deact_{username}"] = deact_otp
+                        if user_email and send_email_notification(
+                            user_email,
+                            "Deactivate Account OTP",
+                            f"Your deactivation OTP is: <strong>{deact_otp}</strong>",
+                        ):
+                            st.success("Deactivation OTP sent to your email!")
+                    else:
+                        st.error("Incorrect password.")
+
+            input_deact_otp = st.text_input("Enter Deactivation OTP", key="deact_otp_input")
+            if st.button("Confirm Account Deactivation", type="primary", use_container_width=True):
+                stored_deact_otp = st.session_state.otp_store.get(f"deact_{username}")
+                clean_deact_otp = (input_deact_otp or "").strip()
+                if stored_deact_otp and stored_deact_otp == clean_deact_otp:
+                    db.deactivate_user_account(user_id)
+                    st.success("Account deactivated.")
+                    st.session_state.authenticated = False
+                    st.session_state.user = None
+                    st.rerun()
+                else:
+                    st.error("Invalid deactivation OTP.")
 
 def main() -> None:
     if st.session_state.authenticated and st.session_state.user:
