@@ -8,7 +8,6 @@ from inventory_service import InventoryService
 from models import SaleItem
 from security_utils import generate_otp, validate_strict_password
 
-# --- Page Config ---
 st.set_page_config(
     page_title="Water Station Inventory Manager",
     page_icon="💧",
@@ -16,7 +15,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# --- Service Integrations ---
 RESEND_KEY = st.secrets.get("RESEND_API_KEY", os.getenv("RESEND_API_KEY"))
 if RESEND_KEY:
     resend.api_key = str(RESEND_KEY)
@@ -31,7 +29,6 @@ def get_services() -> tuple[Database, InventoryService]:
 
 db, inventory_svc = get_services()
 
-# --- Session State ---
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "user" not in st.session_state:
@@ -41,8 +38,6 @@ if "cart" not in st.session_state:
 if "otp_store" not in st.session_state:
     st.session_state.otp_store = {}
 
-
-# --- Helpers ---
 def get_str(obj: Any, key: str, default: str = "") -> str:
     val = (
         obj.get(key, default)
@@ -95,7 +90,6 @@ def send_email_notification(to_email: str, subject: str, body: str) -> bool:
         return False
 
 
-# --- Authentication View ---
 def show_auth_page() -> None:
     st.title("💧 Water Station POS & Security Portal")
 
@@ -222,7 +216,6 @@ def show_auth_page() -> None:
                         st.error(db_msg)
 
 
-# --- Dashboard ---
 def show_dashboard() -> None:
     current_user = st.session_state.user or {}
     user_id = get_int(current_user, "user_id")
@@ -259,10 +252,7 @@ def show_dashboard() -> None:
             st.session_state.cart = []
             st.session_state.otp_logged_in = False
             st.rerun()
-
-    # ==========================================
-    # 🛒 POINT OF SALE
-    # ==========================================
+    
     if menu == "🛒 Point of Sale":
         st.header("🛒 Point of Sale & Checkout")
 
@@ -376,7 +366,7 @@ def show_dashboard() -> None:
                             st.error("Checkout process is not configured.")
             else:
                 st.caption("Cart is empty.")
-    
+
     elif menu == "📦 Products & Inventory":
         st.header("📦 Inventory Management")
 
@@ -465,7 +455,7 @@ def show_dashboard() -> None:
             st.dataframe(c_df, use_container_width=True)
         else:
             st.info("No registered customers.")
-    
+
     elif menu == "🚚 Delivery Dispatch":
         st.header("🚚 Active Delivery Dispatch")
 
@@ -495,7 +485,7 @@ def show_dashboard() -> None:
                             st.rerun()
         else:
             st.info("No active deliveries.")
-    
+
     elif menu == "⚙️ Security & Account Settings":
         st.header("⚙️ Security & Account Settings")
 
@@ -505,10 +495,6 @@ def show_dashboard() -> None:
 
         with tab_reset_pass:
             st.subheader("Change Account Password")
-            st.caption(
-                "Must contain 8+ chars, 1 uppercase, 1 number, 1 symbol, no"
-                " repeating/ordered patterns, and cannot equal username."
-            )
 
             new_pass = st.text_input("New Password", type="password", key="reset_new_pass")
             confirm_pass = st.text_input("Confirm New Password", type="password", key="reset_conf_pass")
@@ -597,6 +583,7 @@ def main() -> None:
         show_dashboard()
     else:
         show_auth_page()
+
 
 if __name__ == "__main__":
     main()
