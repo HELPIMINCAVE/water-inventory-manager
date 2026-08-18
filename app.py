@@ -298,9 +298,11 @@ def show_dashboard() -> None:
                             st.caption(f"In Stock: {p_qty} jugs")
                             
                             if st.button("Add to Cart", key=f"add_{p_id}", disabled=(p_qty <= 0)):
-                                st.session_state.cart.append(
-                                    SaleItem(product_id=p_id, quantity=1, unit_price=p_price)
-                                )
+                                st.session_state.cart.append({
+                                    "product_id": p_id,
+                                    "quantity": 1,
+                                    "unit_price": p_price
+                                })
                                 st.rerun()
         
         with col_right:
