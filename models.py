@@ -3,7 +3,6 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field
 
-
 @dataclass
 class Product:
     product_id: str | int
@@ -21,6 +20,10 @@ class Product:
     def calculate_unit_profit(self) -> float:
         return self.selling_price - self.cost_price
 
+class SaleItem(BaseModel):
+    product_id: int
+    quantity: int
+    unit_price: float
 
 @dataclass
 class Customer:
