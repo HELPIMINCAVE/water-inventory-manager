@@ -10,36 +10,136 @@ class Database:
         conn.row_factory = sqlite3.Row
         return conn
     
-    def init_db(self):
+    def init_db(self) -> None:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS users (
                     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
                     station_name TEXT NOT NULL,
-                    email TEXT NOT NULL,
-                    role TEXT NOT NULL DEFAULT 'cashier',
+                    role TEXT NOT NULL DEFAULT 'owner',
+                    email TEXT,
                     owner_id INTEGER,
                     is_active INTEGER DEFAULT 1,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (owner_id) REFERENCES users(user_id)
                 )
-            """)
+            """
+            )
             
-            cursor.execute("""
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS products (
+                    product_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    quantity INTEGER DEFAULT 0,
+                    empty_quantity INTEGER DEFAULT 0,
+                    unit_price REAL DEFAULT 0.0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id)
+                )
+            """
+            )
+            
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS customers (
+                    customer_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    phone TEXT,
+                    address TEXT,
+                    prepaid_credits REAL DEFAULT 0.0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id)
+                )
+            """
+            )
+            
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sales (
+                    sale_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    customer_id INTEGER,
+                    total_amount REAL NOT NULL,
+                    order_type TEXT DEFAULT 'walk_in',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id),
+                    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+                )
+            """
+            )
+            
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS sale_items (
+                    item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sale_id INTEGER NOT NULL,
+                    product_id INTEGER NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    unit_price REAL NOT NULL,
+                    FOREIGN KEY (sale_id) REFERENCES sales(sale_id),
+                    FOREIGN KEY (product_id) REFERENCES products(product_id)
+                )
+            """
+            )
+            
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS deliveries (
+                    delivery_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    sale_id INTEGER NOT NULL,
+                    status TEXT DEFAULT 'pending',
+                    empty_returned INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id),
+                    FOREIGN KEY (sale_id) REFERENCES sales(sale_id)
+                )
+            """
+            )
+            
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS join_requests (
                     request_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     applicant_username TEXT NOT NULL,
                     applicant_email TEXT NOT NULL,
-                    applicant_password_hash TEXT NOT NULL,
+                    password_raw TEXT NOT NULL,
                     requested_role TEXT NOT NULL,
-                    target_owner_id INTEGER NOT NULL,
+                    owner_id INTEGER NOT NULL,
                     status TEXT DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (owner_id) REFERENCES users(user_id)
                 )
-            """)
+            """
+            )
+            
+            cursor.execute("PRAGMA table_info(products)")
+            prod_cols = [col[1] for col in cursor.fetchall()]
+            if "user_id" not in prod_cols:
+                cursor.execute("ALTER TABLE products ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1")
+            
+            cursor.execute("PRAGMA table_info(customers)")
+            cust_cols = [col[1] for col in cursor.fetchall()]
+            if "user_id" not in cust_cols:
+                cursor.execute("ALTER TABLE customers ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1")
+            
+            cursor.execute("PRAGMA table_info(users)")
+            user_cols = [col[1] for col in cursor.fetchall()]
+            if "email" not in user_cols:
+                cursor.execute("ALTER TABLE users ADD COLUMN email TEXT")
+            if "owner_id" not in user_cols:
+                cursor.execute("ALTER TABLE users ADD COLUMN owner_id INTEGER")
+            if "is_active" not in user_cols:
+                cursor.execute("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1")
+            
             conn.commit()
     
     def hash_password(self, password: str) -> str:
