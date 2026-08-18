@@ -312,17 +312,17 @@ def show_dashboard() -> None:
                 cart_df = pd.DataFrame(
                     [
                         {
-                            "Product ID": item.product_id,
-                            "Qty": item.quantity,
-                            "Price": f"₱{item.unit_price:.2f}",
-                            "Subtotal": f"₱{item.unit_price * item.quantity:.2f}",
+                            "Product ID": item["product_id"],
+                            "Qty": item["quantity"],
+                            "Price": f"₱{item['unit_price']:.2f}",
+                            "Subtotal": f"₱{item['unit_price'] * item['quantity']:.2f}",
                         }
                         for item in st.session_state.cart
                     ]
                 )
                 st.dataframe(cart_df, use_container_width=True)
                 
-                total_amount = sum(item.unit_price * item.quantity for item in st.session_state.cart)
+                total_amount = sum(item["unit_price"] * item["quantity"] for item in st.session_state.cart)
                 st.markdown(f"### Total: **₱{total_amount:.2f}**")
                 
                 order_type = st.radio(
