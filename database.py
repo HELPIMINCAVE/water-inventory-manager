@@ -172,12 +172,6 @@ class Database:
         except sqlite3.IntegrityError:
             return False, "Username already taken."
     
-    def update_email(self, user_id: int, new_email: str):
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("UPDATE users SET email = ? WHERE user_id = ?", (new_email, user_id))
-            conn.commit()
-    
     def update_user_password(self, user_id: int, new_pass_raw: str):
         hashed = self.hash_password(new_pass_raw)
         with self.get_connection() as conn:
@@ -188,3 +182,12 @@ class Database:
     
     def deactivate_user_account(self, user_id: int):
         self.update_user_status(user_id, 0)
+    
+    def update_email(self, user_id: int, new_email: str) -> None:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE users SET email = ? WHERE user_id = ?",
+                (new_email, user_id),
+            )
+            conn.commit()
