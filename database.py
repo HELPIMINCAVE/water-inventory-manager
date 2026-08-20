@@ -31,19 +31,6 @@ class Database:
             """
             )
             
-            cursor.execute("""
-                            CREATE TABLE IF NOT EXISTS products (
-                                product_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                user_id INTEGER NOT NULL DEFAULT 1,
-                                name TEXT NOT NULL,
-                                quantity INTEGER DEFAULT 0,
-                                empty_quantity INTEGER DEFAULT 0,
-                                unit_price REAL DEFAULT 0.0,
-                                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                                FOREIGN KEY (user_id) REFERENCES users(user_id)
-                            )
-                        """)
-            
             cursor.execute(
                 """
                 CREATE TABLE IF NOT EXISTS products (
@@ -134,6 +121,12 @@ class Database:
             """
             )
             
+            
+            cursor.execute("PRAGMA table_info(join_requests)")
+            join_cols = [col[1] for col in cursor.fetchall()]
+            if "target_owner_id" in join_cols and "owner_id" not in join_cols:
+                cursor.execute("ALTER TABLE join_requests RENAME COLUMN target_owner_id TO owner_id")
+            
             cursor.execute("PRAGMA table_info(products)")
             prod_cols = [col[1] for col in cursor.fetchall()]
             if "user_id" not in prod_cols:
@@ -210,11 +203,19 @@ class Database:
             """, (username, email, hashed, role, owner_id))
             conn.commit()
     
-    def get_pending_requests_for_owner(self, owner_id: int):
+    def get_pending_requests_for_owner(self, owner_id: int) -> list[dict]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM join_requests WHERE target_owner_id = ? AND status = 'pending'", (owner_id,))
-            return [dict(r) for r in cursor.fetchall()]
+            cursor.execute(
+                """
+                SELECT * FROM join_requests
+                WHERE owner_id = ? AND status = 'pending'
+                ORDER BY created_at DESC
+                """,
+                (owner_id,),
+            )
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
     
     def process_join_request(self, request_id: int, approve: bool):
         with self.get_connection() as conn:
