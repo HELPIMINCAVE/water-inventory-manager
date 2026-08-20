@@ -146,6 +146,15 @@ class Database:
             if "is_active" not in user_cols:
                 cursor.execute("ALTER TABLE users ADD COLUMN is_active INTEGER DEFAULT 1")
             
+            cursor.execute("PRAGMA table_info(join_requests)")
+            cols = [col[1] for col in cursor.fetchall()]
+            
+            if "target_owner_id" in cols and "owner_id" not in cols:
+                cursor.execute("ALTER TABLE join_requests RENAME COLUMN target_owner_id TO owner_id")
+            
+            if "applicant_password_hash" in cols and "password_raw" not in cols:
+                cursor.execute("ALTER TABLE join_requests RENAME COLUMN applicant_password_hash TO password_raw")
+            
             conn.commit()
     
     def hash_password(self, password: str) -> str:
@@ -193,15 +202,25 @@ class Database:
         except sqlite3.IntegrityError:
             return False, "Username already exists."
     
-    def create_join_request(self, username, email, password_raw, role, owner_id):
-        hashed = self.hash_password(password_raw)
+    def create_join_request(
+            self,
+            username: str,
+            email: str,
+            password_raw: str,
+            role: str,
+            owner_id: int
+    ) -> bool:
         with self.get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO join_requests (applicant_username, applicant_email, applicant_password_hash, requested_role, target_owner_id)
+            cursor.execute(
+                """
+                INSERT INTO join_requests (applicant_username, applicant_email, password_raw, requested_role, owner_id)
                 VALUES (?, ?, ?, ?, ?)
-            """, (username, email, hashed, role, owner_id))
+                """,
+                (username, email, password_raw, role, owner_id),
+            )
             conn.commit()
+            return True
     
     def get_pending_requests_for_owner(self, owner_id: int) -> list[dict]:
         with self.get_connection() as conn:
