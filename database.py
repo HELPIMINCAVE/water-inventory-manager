@@ -236,31 +236,47 @@ class Database:
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
     
-    def process_join_request(self, request_id: int, approve: bool):
+    def process_join_request(self, request_id: int, approve: bool = True) -> tuple[bool, str]:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM join_requests WHERE request_id = ?", (request_id,))
-            req = cursor.fetchone()
-            if not req:
+            row = cursor.fetchone()
+            if not row:
                 return False, "Request not found."
             
-            req = dict(req)
+            req = dict(row)
+            owner_id = req.get("owner_id") if "owner_id" in req else req.get("target_owner_id")
+            applicant_uname = req.get("applicant_username")
+            applicant_email = req.get("applicant_email")
+            password_raw = req.get("password_raw") or req.get("applicant_password_hash")
+            requested_role = req.get("requested_role")
+            
             if approve:
-                cursor.execute("SELECT station_name FROM users WHERE user_id = ?", (req["target_owner_id"],))
-                owner = cursor.fetchone()
-                station_name = owner["station_name"] if owner else "Water Station"
+                cursor.execute("SELECT station_name FROM users WHERE user_id = ?", (owner_id,))
+                owner_row = cursor.fetchone()
+                station_name = owner_row["station_name"] if owner_row else "Water Station"
                 
-                cursor.execute("""
-                    INSERT INTO users (username, password_hash, station_name, role, email, owner_id)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                """, (req["applicant_username"], req["applicant_password_hash"], station_name, req["requested_role"],
-                      req["applicant_email"], req["target_owner_id"]))
+                hashed_p = self.hash_password(password_raw) if hasattr(self, "hash_password") else password_raw
+                cursor.execute(
+                    """
+                    INSERT INTO users (username, password_hash, station_name, role, email, owner_id, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, 1)
+                    """,
+                    (applicant_uname, hashed_p, station_name, requested_role, applicant_email, owner_id),
+                )
                 
-                cursor.execute("UPDATE join_requests SET status = 'approved' WHERE request_id = ?", (request_id,))
+                cursor.execute(
+                    "UPDATE join_requests SET status = 'approved' WHERE request_id = ?",
+                    (request_id,),
+                )
                 conn.commit()
-                return True, "Application approved and staff account created!"
+                return True, f"Approved {applicant_uname} as {requested_role.upper()}."
+            
             else:
-                cursor.execute("UPDATE join_requests SET status = 'rejected' WHERE request_id = ?", (request_id,))
+                cursor.execute(
+                    "UPDATE join_requests SET status = 'rejected' WHERE request_id = ?",
+                    (request_id,),
+                )
                 conn.commit()
                 return True, "Application rejected."
     
