@@ -31,20 +31,18 @@ class Database:
             """
             )
             
-            cursor.execute(
-                """
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS products (
                     product_id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
                     name TEXT NOT NULL,
+                    category TEXT DEFAULT 'Refill',
+                    unit_price REAL NOT NULL,
                     quantity INTEGER DEFAULT 0,
                     empty_quantity INTEGER DEFAULT 0,
-                    unit_price REAL DEFAULT 0.0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users(user_id)
                 )
-            """
-            )
+            """)
             
             cursor.execute(
                 """

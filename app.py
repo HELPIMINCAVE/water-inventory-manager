@@ -27,8 +27,8 @@ if "cart" not in st.session_state:
     st.session_state.cart = []
 
 
-
 def save_new_product(owner_id: int, name: str, category: str, price: float, quantity: int, empty_quantity: int):
+    """Safely delegates product creation and automatically patch missing schema columns."""
     if hasattr(inventory_service, "create_product"):
         return inventory_service.create_product(owner_id, name, category, price, quantity, empty_quantity)
     elif hasattr(inventory_service, "add_product"):
@@ -38,6 +38,14 @@ def save_new_product(owner_id: int, name: str, category: str, price: float, quan
     else:
         with db.get_connection() as conn:
             cursor = conn.cursor()
+            
+            cursor.execute("PRAGMA table_info(products)")
+            columns = [column[1] for column in cursor.fetchall()]
+            
+            if "category" not in columns:
+                cursor.execute("ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'Refill'")
+                conn.commit()
+            
             cursor.execute(
                 """
                 INSERT INTO products (user_id, name, category, unit_price, quantity, empty_quantity)
