@@ -28,6 +28,28 @@ if "cart" not in st.session_state:
 
 
 
+def save_new_product(owner_id: int, name: str, category: str, price: float, quantity: int, empty_quantity: int):
+    if hasattr(inventory_service, "create_product"):
+        return inventory_service.create_product(owner_id, name, category, price, quantity, empty_quantity)
+    elif hasattr(inventory_service, "add_product"):
+        return inventory_service.add_product(owner_id, name, category, price, quantity, empty_quantity)
+    elif hasattr(db, "add_product"):
+        return db.add_product(owner_id, name, category, price, quantity, empty_quantity)
+    else:
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO products (user_id, name, category, unit_price, quantity, empty_quantity)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (owner_id, name, category, price, quantity, empty_quantity)
+            )
+            conn.commit()
+        return True
+
+
+
 def show_auth_page():
     st.title("💧 Water Inventory Manager")
     st.subheader("Sign In or Join Station Workforce")
@@ -113,6 +135,8 @@ def show_auth_page():
                     else:
                         st.error("Owner details do not match any registered station.")
 
+
+
 def render_dashboard_overview(user: dict):
     st.header("📊 Dashboard & Key Metrics")
     owner_id = user["user_id"] if user["role"] == "owner" else user.get("owner_id", user["user_id"])
@@ -120,10 +144,11 @@ def render_dashboard_overview(user: dict):
     col1, col2, col3, col4 = st.columns(4)
     
     products = inventory_service.get_all_products(owner_id)
-    total_stock = sum(p["quantity"] for p in products)
-    low_stock_count = sum(1 for p in products if p["quantity"] <= 10)
-    customers = inventory_service.get_all_customers(owner_id)
-    deliveries = inventory_service.get_pending_deliveries(owner_id)
+    total_stock = sum(p["quantity"] for p in products) if products else 0
+    low_stock_count = sum(1 for p in products if p["quantity"] <= 10) if products else 0
+    customers = inventory_service.get_all_customers(owner_id) if hasattr(inventory_service, "get_all_customers") else []
+    deliveries = inventory_service.get_pending_deliveries(owner_id) if hasattr(inventory_service,
+                                                                               "get_pending_deliveries") else []
     
     col1.metric("Total Water Stock", f"{total_stock} Units")
     col2.metric("Low Stock Alerts", f"{low_stock_count}", delta_color="inverse")
@@ -147,7 +172,7 @@ def render_record_sales_page(user: dict):
     owner_id = user["user_id"] if user["role"] == "owner" else user.get("owner_id", user["user_id"])
     
     products = inventory_service.get_all_products(owner_id)
-    customers = inventory_service.get_all_customers(owner_id)
+    customers = inventory_service.get_all_customers(owner_id) if hasattr(inventory_service, "get_all_customers") else []
     
     if not products:
         st.warning("Please add products to your inventory first.")
@@ -155,7 +180,6 @@ def render_record_sales_page(user: dict):
     
     col_left, col_right = st.columns([1.5, 1])
     
-    # --- LEFT COLUMN: ITEM SELECTION & CART ---
     with col_left:
         st.subheader("Select Products")
         prod_names = [f"{p['name']} - ₱{p['unit_price']:.2f} (Stock: {p['quantity']})" for p in products]
@@ -186,7 +210,6 @@ def render_record_sales_page(user: dict):
         else:
             st.info("Cart is currently empty.")
     
-    # --- RIGHT COLUMN: CHECKOUT & PAYMENT ---
     with col_right:
         st.subheader("Order Details & Checkout")
         
@@ -229,13 +252,50 @@ def render_inventory_page(user: dict):
     st.header("📦 Inventory Management")
     owner_id = user["user_id"] if user["role"] == "owner" else user.get("owner_id", user["user_id"])
     
-    products = inventory_service.get_all_products(owner_id)
+    tab1, tab2 = st.tabs(["📋 Current Stock", "➕ Add New Product"])
     
-    st.subheader("Current Stock Items")
-    if products:
-        st.dataframe(pd.DataFrame(products), use_container_width=True)
-    else:
-        st.info("No stock records found.")
+    with tab1:
+        products = inventory_service.get_all_products(owner_id)
+        if products:
+            df_prod = pd.DataFrame(products)
+            st.dataframe(
+                df_prod[["product_id", "name", "category", "unit_price", "quantity", "empty_quantity"]],
+                use_container_width=True
+            )
+        else:
+            st.info("No stock records found. Use the 'Add New Product' tab to create your first item.")
+    
+    # --- TAB 2: ADD NEW PRODUCT FORM ---
+    with tab2:
+        st.subheader("Register Product or Service")
+        with st.form("add_product_form", clear_on_submit=True):
+            p_name = st.text_input("Product / Service Name *", placeholder="e.g., 5-Gallon Slim Refill")
+            p_category = st.selectbox("Category", ["Refill", "Container/Jug", "Dispenser/Accessory", "Service"])
+            
+            col1, col2, col3 = st.columns(3)
+            p_price = col1.number_input("Unit Price (₱) *", min_value=0.0, step=1.0, value=35.0)
+            p_stock = col2.number_input("Initial Filled Stock (Qty) *", min_value=0, step=1, value=50)
+            p_empty = col3.number_input("Empty Jugs Available", min_value=0, step=1, value=20)
+            
+            submit_product = st.form_submit_button("💾 Save Product", type="primary", use_container_width=True)
+            
+            if submit_product:
+                if not p_name.strip():
+                    st.warning("Please provide a product name.")
+                else:
+                    try:
+                        save_new_product(
+                            owner_id=owner_id,
+                            name=p_name.strip(),
+                            category=p_category,
+                            price=p_price,
+                            quantity=p_stock,
+                            empty_quantity=p_empty
+                        )
+                        st.success(f"Successfully added **{p_name}** to inventory!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Failed to add product: {e}")
 
 
 def render_customers_page(user: dict):
@@ -342,7 +402,6 @@ def render_settings_page(user: dict):
             st.dataframe(pd.DataFrame(team)[["username", "email", "role", "is_active"]], use_container_width=True)
     else:
         st.info("Staff account - workforce settings are managed by the station owner.")
-
 
 def show_dashboard():
     user = st.session_state.user
